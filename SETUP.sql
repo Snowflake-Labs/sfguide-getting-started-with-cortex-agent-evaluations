@@ -41,13 +41,13 @@ CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH WAREHOUSE_SIZE='SMALL';
 -- Create API integration for GitHub (public repo, no secrets needed)
 CREATE API INTEGRATION IF NOT EXISTS GITHUB_API_INTEGRATION_AGENT_EVAL_QUICKSTART
     API_PROVIDER = git_https_api
-    API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-ebotwick/')
+    API_ALLOWED_PREFIXES = ('https://github.com/Snowflake-Labs/')
     ENABLED = TRUE;
 
 -- Clone the GitHub repository
 CREATE OR REPLACE GIT REPOSITORY CORTEX_AGENT_QUICKSTART_REPO
     API_INTEGRATION = GITHUB_API_INTEGRATION_AGENT_EVAL_QUICKSTART
-    ORIGIN = 'https://github.com/sfc-gh-ebotwick/CORTEX_AGENT_EVALS_QUICKSTART.git';
+    ORIGIN = 'https://github.com/Snowflake-Labs/sfguide-getting-started-with-cortex-agent-evaluations.git';
 
 -- Fetch latest from GitHub
 ALTER GIT REPOSITORY CORTEX_AGENT_QUICKSTART_REPO FETCH;
