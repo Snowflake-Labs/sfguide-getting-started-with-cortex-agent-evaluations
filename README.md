@@ -2,7 +2,7 @@
 
 A practical toolkit for building and testing evaluation datasets with Snowflake's Cortex Agent Evaluations (Private Preview).
 
-Try it yourself in the [developer guide](https://www.snowflake.com/en/developers/guides/getting-started-with-cortex-agent-evaluations)
+Try it yourself in the [developer guide](https://www.snowflake.com/en/developers/guides/getting-started-with-cortex-agent-evaluations).
 
 ## Requirements
 
