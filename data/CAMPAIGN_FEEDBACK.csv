@@ -1,0 +1,24 @@
+FEEDBACK_ID,CAMPAIGN_ID,FEEDBACK_DATE,CUSTOMER_SEGMENT,SATISFACTION_SCORE,DETAILED_COMMENTS,SURVEY_RESPONSES,RECOMMENDED_IMPROVEMENTS
+1,1,2024-04-15,Fashion Enthusiasts,4.50,Love the sustainable focus! Materials feel high quality and designs are on-trend. Pricing is reasonable for eco-friendly fashion. Wish there were more size options.,,Add extended sizing. More color options in sustainable line.
+2,1,2024-04-20,Eco-conscious Shoppers,4.80,Finally a brand that cares about the environment! Transparency about sourcing appreciated. Fast shipping and beautiful packaging.,,Share more about supply chain sustainability.
+3,2,2024-03-25,B2B Decision Makers,3.90,Content was informative but felt too generic at times. Case studies were helpful. Would like more industry-specific examples.,,More personalization. Interactive content like assessments or calculators.
+4,3,2024-07-10,Deal Seekers,4.90,Incredible deals! Saved so much money. Website was easy to navigate. Checkout was smooth. Found everything on my wishlist.,,Even longer sale period. More inventory on popular items.
+5,3,2024-07-12,Price-Sensitive Shoppers,4.70,Best sale of the year! Quality products at amazing prices. Free shipping made it even better. Will definitely shop future sales.,,Email alerts when items are back in stock.
+6,4,2024-05-28,Tech Professionals,4.20,Thought-provoking content. Appreciated the data and research. Whitepapers were comprehensive. Helped with strategic planning.,,More interactive webinars. Shorter executive summaries.
+7,5,2024-11-25,Black Friday Shoppers,4.60,Great deals but website was slow during peak hours. Found what I needed eventually. Push notifications were helpful.,,Better site performance. Clearer deal expiration times.
+8,6,2024-10-10,Tech Enthusiasts,4.40,Teaser campaign was engaging and fun! Loved the mystery and daily reveals. Pre-order process was simple.,,More interactive elements. Behind-the-scenes content.
+9,7,2024-06-20,Loyal Customers,4.90,Feel so appreciated! VIP perks are amazing. Free shipping saves me so much. Customer service is always helpful.,,Birthday rewards. Exclusive product launches for VIP.
+10,8,2024-12-15,Holiday Shoppers,4.30,Gift guide made shopping so easy! Found perfect gifts for everyone. Gift wrapping service is convenient.,,More price range options. Virtual shopping assistant.
+11,9,2024-08-20,Enterprise Buyers,4.10,Professional and informative content. Case studies demonstrated clear value. Free consultation was useful.,,More technical deep-dives. ROI calculator tool.
+12,10,2024-09-10,Parents,4.50,One-stop shop for back to school! Bundle deals saved money. Student discount verification was easy.,,Shopping lists by grade level. Bulk discounts.
+13,10,2024-09-12,Students,4.70,Student discount is awesome! Found everything I needed for dorm. Fast shipping before semester start.,,Student rewards program. More tech accessories.
+14,11,2024-06-25,Millennials,4.60,Influencer content feels authentic. Love seeing real styling ideas. Discount codes are generous.,,More diverse influencer partners. Styling videos.
+15,12,2024-07-28,Inactive Users,3.80,Glad I came back. Forgot how much I liked shopping here. 30% off was great incentive.,,Understand why people leave. Easier re-engagement.
+16,13,2024-11-20,Premium Members,4.80,Membership pays for itself! Free shipping alone is worth it. Love early access to sales.,,More member-exclusive products. Mobile app features.
+17,15,2024-08-25,Mobile Users,4.40,App is so convenient! Push notifications keep me updated. Mobile checkout is fast.,,Apple Pay support. Wishlist sync across devices.
+18,16,2024-07-22,Eco-conscious Consumers,4.30,Appreciate sustainability commitment. Carbon-neutral shipping is great. Want to see more progress.,,Regular sustainability reports. Product lifecycle info.
+19,17,2024-05-21,Bargain Hunters,4.90,Insane deals! Got everything on my list. 48-hour urgency made me act fast.,,More frequent flash sales. Early access option.
+20,20,2024-10-28,Prospective Customers,4.20,Customer testimonials helped me decide to try. Real stories were convincing.,,More video testimonials. Before/after examples.
+21,22,2024-09-25,Referral Program Users,4.50,Easy to refer friends! Love that we both get rewards. Already referred 5 people.,,Higher rewards for multiple referrals. Social sharing.
+22,24,2024-06-28,Product Researchers,4.40,Demo videos answered all my questions. Saw product in action before buying.,,Comparison videos. Customer Q&A sessions.
+23,25,2024-10-29,Long-time Customers,4.70,Been shopping here for years! Anniversary sale was wonderful. Feel valued as a customer.,,Loyalty tiers based on years. Exclusive anniversary products.

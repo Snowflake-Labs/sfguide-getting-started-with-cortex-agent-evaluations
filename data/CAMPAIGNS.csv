@@ -1,0 +1,26 @@
+CAMPAIGN_ID,CAMPAIGN_NAME,CAMPAIGN_TYPE,START_DATE,END_DATE,BUDGET_ALLOCATED,TARGET_AUDIENCE,CHANNEL,STATUS,CREATED_BY,CREATED_AT
+1,Spring Fashion Launch 2024,Product Launch,2024-03-01,2024-04-30,75000.00,"Women 25-45, Fashion Enthusiasts",social,completed,sarah.marketing,2025-12-11 20:44:49.853
+2,Q1 Email Nurture Series,Lead Nurturing,2024-01-15,2024-03-31,25000.00,B2B Decision Makers,email,completed,john.campaigns,2025-12-11 20:44:49.853
+3,Summer Sale Extravaganza,Promotional,2024-06-01,2024-07-15,120000.00,"All Customers, Deal Seekers",display,completed,sarah.marketing,2025-12-11 20:44:49.853
+4,Brand Awareness - Tech Sector,Brand Building,2024-02-01,2024-05-31,200000.00,Tech Professionals 30-55,search,completed,michael.brand,2025-12-11 20:44:49.853
+5,Black Friday Mega Sale,Seasonal,2024-11-15,2024-11-30,300000.00,All Segments,social,active,sarah.marketing,2025-12-11 20:44:49.853
+6,New Product Teaser Campaign,Product Launch,2024-09-01,2024-10-15,45000.00,"Early Adopters, Tech Enthusiasts",social,completed,emily.digital,2025-12-11 20:44:49.853
+7,Customer Retention Q2,Retention,2024-04-01,2024-06-30,60000.00,Existing Customers,email,completed,john.campaigns,2025-12-11 20:44:49.853
+8,Holiday Gift Guide 2024,Seasonal,2024-11-01,2024-12-24,150000.00,"Gift Shoppers, All Ages",display,active,sarah.marketing,2025-12-11 20:44:49.853
+9,LinkedIn B2B Lead Gen,Lead Generation,2024-05-01,2024-08-31,85000.00,Enterprise Decision Makers,social,completed,michael.brand,2025-12-11 20:44:49.853
+10,Back to School Campaign,Seasonal,2024-08-01,2024-09-15,95000.00,"Parents, Students 18-24",search,completed,emily.digital,2025-12-11 20:44:49.853
+11,Influencer Partnership Series,Brand Building,2024-03-15,2024-06-30,110000.00,"Millennials, Gen Z",social,completed,sarah.marketing,2025-12-11 20:44:49.853
+12,Re-engagement Email Blast,Retention,2024-07-01,2024-07-31,15000.00,Inactive Users 90+ days,email,completed,john.campaigns,2025-12-11 20:44:49.853
+13,Premium Membership Launch,Product Launch,2024-10-01,2024-11-30,180000.00,High-Value Customers,email,active,michael.brand,2025-12-11 20:44:49.853
+14,Valentine Day Special,Seasonal,2024-02-01,2024-02-14,55000.00,Couples 25-50,display,completed,emily.digital,2025-12-11 20:44:49.853
+15,Mobile App Download Campaign,App Promotion,2024-06-15,2024-08-31,70000.00,Mobile-First Users,search,completed,sarah.marketing,2025-12-11 20:44:49.853
+16,Sustainability Initiative Awareness,Brand Building,2024-04-15,2024-07-31,90000.00,Eco-Conscious Consumers,social,completed,michael.brand,2025-12-11 20:44:49.853
+17,Flash Sale - 48 Hours,Promotional,2024-05-20,2024-05-22,30000.00,Price-Sensitive Shoppers,email,completed,emily.digital,2025-12-11 20:44:49.853
+18,Year-End Clearance,Promotional,2024-12-01,2024-12-31,135000.00,Bargain Hunters,display,active,sarah.marketing,2025-12-11 20:44:49.853
+19,Webinar Series Promotion,Lead Generation,2024-03-01,2024-05-31,40000.00,B2B Professionals,email,completed,john.campaigns,2025-12-11 20:44:49.853
+20,Customer Testimonials Campaign,Social Proof,2024-08-15,2024-10-31,50000.00,Prospective Customers,social,completed,michael.brand,2025-12-11 20:44:49.853
+21,Cyber Monday Deals,Seasonal,2024-11-28,2024-12-02,250000.00,Online Shoppers,search,active,emily.digital,2025-12-11 20:44:49.853
+22,Referral Program Launch,Customer Acquisition,2024-07-15,2024-09-30,65000.00,Existing Happy Customers,email,completed,john.campaigns,2025-12-11 20:44:49.853
+23,New Market Expansion - West Coast,Geographic Expansion,2024-09-15,2024-12-31,175000.00,West Coast Residents,display,active,michael.brand,2025-12-11 20:44:49.853
+24,Product Demo Video Series,Educational,2024-04-01,2024-06-30,55000.00,Consideration Stage Leads,social,completed,sarah.marketing,2025-12-11 20:44:49.853
+25,Anniversary Sale - 5 Years,Promotional,2024-10-15,2024-10-31,100000.00,Loyal Customers,email,completed,emily.digital,2025-12-11 20:44:49.853
