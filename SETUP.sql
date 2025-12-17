@@ -16,37 +16,87 @@
 -- Estimated runtime: 5-10 minutes
 -- ====================================================================
 
+-- ====================================================================
+-- SECTION 1: DATABASE AND SCHEMA CREATION
+-- ====================================================================
+
+-- Use ACCOUNTADMIN to setup
 USE ROLE ACCOUNTADMIN;
-
--- ============================================================================
--- SECTION 0: CREATE GIT INTEGRATION (for loading CSV files from repo)
--- ============================================================================
-
-
--- ====================================================================
--- SECTION 1: DATABASE AND TABLE CREATION
--- ====================================================================
-
 
 -- Create database using variable
 CREATE DATABASE IF NOT EXISTS MARKETING_CAMPAIGNS_DB;
-CREATE SCHEMA IF NOT EXISTS MARKETING_CAMPAIGNS_DB.AGENTS;
+CREATE OR REPLACE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS;
 USE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS;
 CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH WAREHOUSE_SIZE='SMALL';
 
+
+-- ====================================================================
+-- SECTION 2: NEW ROLE CONFIGURATION
+-- ====================================================================
+
+-- Create new role
+CREATE OR REPLACE ROLE AGENT_EVAL_ROLE;
+
+-- Set current user (or change if running on behalf of a coworker)
+SET AGENT_EVAL_USER = CURRENT_USER();
+
+-- Grant role to user
+GRANT ROLE AGENT_EVAL_ROLE to USER IDENTIFIER($AGENT_EVAL_USER);
+
+-- Usage on DB and Schema
+GRANT USAGE ON DATABASE MARKETING_CAMPAIGNS_DB TO ROLE AGENT_EVAL_ROLE;
+GRANT USAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE TABLE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE STAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+
+
+-- Specialized db/application roles
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE AGENT_EVAL_ROLE;
+GRANT APPLICATION ROLE SNOWFLAKE.AI_OBSERVABILITY_EVENTS_LOOKUP TO ROLE AGENT_EVAL_ROLE;
+
+-- Create Datasets
+GRANT CREATE FILE FORMAT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE DATASET ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+
+-- Create and execute tasks
+GRANT CREATE TASK ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT EXECUTE TASK ON ACCOUNT TO ROLE AGENT_EVAL_ROLE;
+
+-- Run evaluations
+GRANT MONITOR ON FUTURE AGENTS IN SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+
+-- Impersonate user to execute eval runs
+GRANT IMPERSONATE ON USER IDENTIFIER($AGENT_EVAL_USER) TO ROLE AGENT_EVAL_ROLE;
+
+-- Warehouse usage
+GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE AGENT_EVAL_ROLE;
+
+-- Git setup
+GRANT CREATE API INTEGRATION ON ACCOUNT TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE GIT REPOSITORY ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+
+-- Service and Agent creation
+GRANT CREATE SEMANTIC VIEW ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE CORTEX SEARCH SERVICE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE PROCEDURE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE AGENT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+
 -- ============================================================================
--- SECTION 2: CREATE GIT INTEGRATION (for loading CSV files from repo)
+-- SECTION 3: CREATE GIT INTEGRATION (for loading CSV files from repo)
 -- ============================================================================
 
+-- Use new role
+USE ROLE AGENT_EVAL_ROLE;
+
 -- Create API integration for GitHub (public repo, no secrets needed)
-CREATE API INTEGRATION IF NOT EXISTS GITHUB_API_INTEGRATION_AGENT_EVAL_QUICKSTART
+CREATE API INTEGRATION IF NOT EXISTS GIT_API_INTEGRATION_AGENT_EVAL_QUICKSTART
     API_PROVIDER = git_https_api
     API_ALLOWED_PREFIXES = ('https://github.com/Snowflake-Labs/')
     ENABLED = TRUE;
 
 -- Clone the GitHub repository
 CREATE OR REPLACE GIT REPOSITORY CORTEX_AGENT_QUICKSTART_REPO
-    API_INTEGRATION = GITHUB_API_INTEGRATION_AGENT_EVAL_QUICKSTART
+    API_INTEGRATION = GIT_API_INTEGRATION_AGENT_EVAL_QUICKSTART
     ORIGIN = 'https://github.com/Snowflake-Labs/sfguide-getting-started-with-cortex-agent-evaluations.git';
 
 -- Fetch latest from GitHub
@@ -58,7 +108,7 @@ LS @CORTEX_AGENT_QUICKSTART_REPO/branches/main/data;
 
 
 -- ============================================================================
--- SECTION 3: CREATE AND POPULATE TABLES
+-- SECTION 4: CREATE AND POPULATE TABLES
 -- ============================================================================
 
 -- First create a file format to use when reading data from github
@@ -175,7 +225,7 @@ FROM EVALS_TABLE;
 
 
 -- ====================================================================
--- SECTION 3: VALIDATE DATA;
+-- SECTION 5: VALIDATE DATA;
 -- ====================================================================
 
 SELECT * FROM CAMPAIGNS;
@@ -189,7 +239,7 @@ SELECT * FROM CAMPAIGN_PERFORMANCE;
 SELECT * FROM EVALS_TABLE;
 
 -- ====================================================================
--- SECTION 4: CREATE SEMANTIC VIEW
+-- SECTION 6: CREATE SEMANTIC VIEW
 -- ====================================================================
 
 CREATE OR REPLACE SEMANTIC VIEW MARKETING_PERFORMANCE_ANALYST
@@ -405,7 +455,7 @@ BEGIN
 SELECT CURRENT_ORGANIZATION_NAME(), CURRENT_ACCOUNT_NAME() 
   INTO ORG_NAME, ACCOUNT_NAME;
   
-  upload_result := 'Report '|| file_name || ' generated and uploaded to stage. View here - https://app.snowflake.com/'|| ORG_NAME ||'/' || ACCOUNT_NAME ||'/#/data/databases/MARKETING_CAMPAIGNS_DB/schemas/TEST/stage/CAMPAIGN_REPORTS';
+  upload_result := 'Report '|| file_name || ' generated and uploaded to stage. View here - https://app.snowflake.com/'|| ORG_NAME ||'/' || ACCOUNT_NAME ||'/#/data/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS/stage/CAMPAIGN_REPORTS';
 
   
   RETURN upload_result;
@@ -450,12 +500,12 @@ CALL GENERATE_CAMPAIGN_REPORT_HTML(1);
 LS @CAMPAIGN_REPORTS;
 
 -- ====================================================================
--- SECTION 10: CREATE CORTEX AGENTS
+-- SECTION 10: CREATE CORTEX AGENT
 -- ====================================================================
 
 
-CREATE OR REPLACE AGENT MARKETING_CAMPAIGN_AGENT
-WITH PROFILE='{ "display_name": "MARKETING_CAMPAIGN_AGENT" }'
+CREATE OR REPLACE AGENT MARKETING_CAMPAIGNS_AGENT
+WITH PROFILE='{ "display_name": "MARKETING_CAMPAIGNS_AGENT" }'
     COMMENT=$$ Agent specializing in analyzing marketing campaigns for performance, ROI, feedbakc, etc. $$
 FROM SPECIFICATION $$
 {
@@ -532,147 +582,145 @@ FROM SPECIFICATION $$
 }
 
 $$;
-
-DESCRIBE AGENT MARKETING_CAMPAIGN_AGENT;
-
-
--- CREATE OR REPLACE AGENT MARKETING_CAMPAIGNS_DB.PUBLIC.MARKETING_CAMPAIGN_AGENT_OPTIMIZED
--- WITH PROFILE='{ "display_name": "MARKETING_CAMPAIGN_AGENT_OPTIMIZED" }'
---     COMMENT=$$ Agent specializing in analyzing marketing campaigns for performance, ROI, feedback, etc. $$;
--- FROM SPECIFICATION $$
--- {
---     "models": {"orchestration": "auto"},
---     "instructions": {
--- "orchestration": "You are a marketing campaigns analytics agent with three specialized tools. Follow these STRICT routing rules to ensure consistent tool selection:
-
--- ## TOOL ROUTING RULES (Apply in order)
+-- Validate agent creation
+DESCRIBE AGENT MARKETING_CAMPAIGNS_AGENT;
 
 
--- ### Rule 1: Quantitative Analysis (Use query_performance_metrics)
--- Use query_performance_metrics when the query involves:
--- - NUMERICAL METRICS: revenue, ROI, conversions, clicks, impressions, costs, budget, engagement rates
--- - CALCULATIONS: totals, averages, percentages, ratios, growth rates, trends over time
--- - COMPARISONS: top/bottom campaigns, ranking, channel comparison, time period analysis
--- - AGGREGATIONS: sum, count, average, min, max by dimensions like channel, type, audience
--- - PERFORMANCE QUESTIONS: 'how much', 'how many', 'what is the rate', 'calculate'
--- - Keywords: 'revenue', 'ROI', 'cost', 'conversions', 'clicks', 'performance', 'metrics', 'total', 'average', 'rate', 'top', 'bottom', 'best', 'worst', 'compare'
--- - Examples: 'What was total revenue by channel?', 'Which campaigns had highest ROI?', 'Show me conversion rates over time', 'Compare email vs social performance'
+-- ====================================================================
+-- SECTION 11: AGENT EVAL INSTRUCTIONS - ACTION REQUIRED!
+-- ====================================================================
 
--- ### Rule 3: Qualitative Analysis (Use search_campaign_content)
--- Use search_campaign_content when the query involves:
--- - TEXT CONTENT: campaign descriptions, marketing copy, messaging, creative elements
--- - CUSTOMER FEEDBACK: comments, reviews, satisfaction, sentiment, recommendations
--- - STRATEGY INSIGHTS: A/B testing notes, tactics, approaches, best practices, lessons learned
--- - CONTENT DISCOVERY: finding campaigns by theme, approach, or content similarity
--- - QUALITATIVE QUESTIONS: 'what did customers say', 'what was the strategy', 'find campaigns about'
--- - Keywords: 'feedback', 'comments', 'description', 'copy', 'content', 'strategy', 'A/B test', 'customer said', 'testimonials', 'improvements', 'about', 'similar to', 'messaging'
--- - Examples: 'What feedback did we get on email campaigns?', 'Find campaigns about sustainability', 'What was the messaging strategy?', 'Show A/B test insights'
-
--- ### Rule 4: Report Generation 
--- ** Always use query_performance_metrics tool first to determine campaign_ID to pass in to report generate_campaign_report tool **
--- Use generate_campaign_report when:
--- - User explicitly requests a 'report' or 'comprehensive report'
--- - User asks to 'generate', 'create', or 'show' a report
--- - User provides or mentions a campaign_id and wants detailed information
--- - Keywords: 'report', 'HTML', 'full details', 'comprehensive analysis'
--- - Examples: 'Generate a report for campaign 5', 'Create report for Spring Fashion Launch'
--- ** Always share insights with the user immediately upon creating the report - rather than simply creating the report itself . This can be done with one more additional call to query_performance_metrics**
-
--- ### Rule 4: Multi-Tool Queries
--- For queries needing BOTH quantitative AND qualitative data:
--- 1. FIRST use query_performance_metrics for numerical data
--- 2. THEN use search_campaign_content for qualitative insights
--- 3. Combine results in your response
--- - Examples: 'Analyze our best performing campaign' (metrics + strategy), 'What made the Spring campaign successful?' (ROI + feedback)
-
--- ## CONSISTENCY REQUIREMENTS
--- - For identical queries, ALWAYS use the same tool(s)
--- - If a query contains both metric keywords AND content keywords, default to query_performance_metrics
--- - If campaign_id is provided without explicit report request, use query_performance_metrics to filter by that campaign
--- - Never use search_campaign_content for numerical analysis
--- - Never use query_performance_metrics for text content or feedback
-
--- ## WHEN UNCERTAIN
--- If the query is ambiguous:
--- 1. Check for numerical keywords → use query_performance_metrics
--- 2. Check for content keywords → use search_campaign_content
--- 3. If still unclear, ask the user to clarify whether they want metrics or content insights",                                                                                                                                                                                     
-                                                                                                                                                                                                
---      "response": "Follow these response formatting rules for consistency:\n\n1. STRUCTURE:\n   - Start with a direct answer to the question\n   - Present data in clear, organized format       
---  (tables, lists, or sections)\n   - End with actionable insights or recommendations\n\n2. METRICS PRESENTATION:\n   - Always include units (dollars, percentages, counts)\n   - Format large    
---  numbers with commas (e.g., 1,234,567)\n   - Round percentages to 2 decimal places\n   - Provide context (e.g., 'X% higher than average')\n\n3. CONTENT SUMMARIZATION:\n   - Quote key phrases  
---  from original content\n   - Identify themes across multiple results\n   - Highlight actionable recommendations\n   - Mention specific campaign names when relevant\n\n4. CITATIONS:\n   -      
---  Always cite specific campaigns by name\n   - Include dates when discussing time-based data\n   - Reference specific metrics by name\n\n5. TONE:\n   - Professional and data-driven\n   -       
---  Concise but complete\n   - Actionable and insight-focused\n   - Avoid speculation; base all statements on data\n\n6. CONSISTENCY:\n   - Use the same format for similar queries\n   - Present  
---  metrics in the same order (revenue, ROI, conversions, etc.)\n   - Use consistent terminology (e.g., always 'ROI' not 'return on investment')"          
---     },
---     "tools": [
---         {
---             "tool_spec": {
---                 "type": "cortex_analyst_text_to_sql",
---                 "name": "query_performance_metrics",
---                 "description": "Query structured performance data including campaign ROI, revenue, budget efficiency, impressions, clicks, conversions, cost metrics, and engagement rates. Use for quantitative analysis of campaign performance across channels and time periods."
---             }
---         },
---         {
---             "tool_spec": {
---                 "type": "cortex_search",
---                 "name": "search_campaign_content",
---                 "description": "Search unstructured campaign content including campaign descriptions, marketing copy, A/B test results, customer feedback, and recommended improvements. Use for qualitative insights, content discovery, and learning from past campaigns."
---             }
---         },
---         {
---             "tool_spec": {
---                 "type": "generic",
---                 "name": "generate_campaign_report",
---                 "description": "Generate a comprehensive HTML report for a specific campaign including all performance metrics, customer feedback, and key insights. Returns formatted report ready for PDF conversion.",
---                 "input_schema": {
---                     "type": "object",
---                     "properties": {
---                         "campaign_id": {
---                             "type": "integer",
---                             "description": "The unique identifier of the campaign to generate a report for"
---                         }
---                     },
---                     "required": ["campaign_id"]
---                 }
---             }
---         }
---     ],
---     "tool_resources": {
---         "query_performance_metrics": {
---             "execution_environment": {
---                 "query_timeout": 299,
---                 "type": "warehouse",
---                 "warehouse": "COMPUTE_WH"
---             },
---             "semantic_view": "MARKETING_CAMPAIGNS_DB.PUBLIC.MARKETING_PERFORMANCE_ANALYST"
---         },
---         "search_campaign_content": {
---             "execution_environment": {
---                 "query_timeout": 299,
---                 "type": "warehouse",
---                 "warehouse": "COMPUTE_WH"
---             },
---             "search_service": "MARKETING_CAMPAIGNS_DB.PUBLIC.MARKETING_CAMPAIGNS_SEARCH"
---         },
---         "generate_campaign_report": {
---             "type": "procedure",
---             "identifier": "MARKETING_CAMPAIGNS_DB.PUBLIC.GENERATE_CAMPAIGN_REPORT_HTML",
---             "execution_environment": {
---                 "type": "warehouse",
---                 "warehouse": "COMPUTE_WH",
---                 "query_timeout": 300
---             }
---         }
---     }
--- }
--- $$;
-
-
--- DESCRIBE AGENT MARKETING_CAMPAIGN_AGENT_OPTIMIZED;
 
 SELECT 
+$$
+Now follow the below instructions to evaluate the performance of each agent!
+
+- Navigate to your newly created agent and click into Evaluations Tab
+    - Name your new evaluation run and optionally give a description [click next]
+    - Select Create New Dataset
+        - Select MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE as your input table
+        - Select MARKETING_CAMPAIGNS_DB.AGENTS.QUICKSTART_EVALSET as your new dataset destination [click next]
+    - Select INPUT_QUERY as your Query Text column
+        - Check boxes for all metrics available
+        - Tool Selection Accuracy, Tool Execution Accuracy, and Answer Correctness should reference the EXPECTED_TOOLS column
+        - Click Create Evaluation
+        
+Now wait as your queries are executed and your evaluation metrics are computed! This should populate in roughly ~3-5 minutes.
+
+Compare how the baseline agent and the optimized agent performed on various metrics!
+
+====================================================================
+$$ as setup_status;
+
+
+-- ====================================================================
+-- SECTION 12: AGENT OPTIMIZATION - ACTION REQUIRED!
+-- ====================================================================
+
+
+-- ORCHESTRATION INSTRUCTIONS
+-- In the Agent UI for your newly created agent click Edit and navigate to the Orchestration tab
+-- Copy/paste below text into Orchestration Instructions
+    
+    $$
+    You are a marketing campaigns analytics agent with three specialized tools. Follow these STRICT routing rules to ensure consistent tool selection:
+    
+    ## TOOL ROUTING RULES (Apply in order)
+    
+    
+    ### Rule 1: Quantitative Analysis (Use query_performance_metrics)
+    Use query_performance_metrics when the query involves:
+    - NUMERICAL METRICS: revenue, ROI, conversions, clicks, impressions, costs, budget, engagement rates
+    - CALCULATIONS: totals, averages, percentages, ratios, growth rates, trends over time
+    - COMPARISONS: top/bottom campaigns, ranking, channel comparison, time period analysis
+    - AGGREGATIONS: sum, count, average, min, max by dimensions like channel, type, audience
+    - PERFORMANCE QUESTIONS: 'how much', 'how many', 'what is the rate', 'calculate'
+    - Keywords: 'revenue', 'ROI', 'cost', 'conversions', 'clicks', 'performance', 'metrics', 'total', 'average', 'rate', 'top', 'bottom', 'best', 'worst', 'compare'
+    - Examples: 'What was total revenue by channel?', 'Which campaigns had highest ROI?', 'Show me conversion rates over time', 'Compare email vs social performance'
+    
+    ### Rule 3: Qualitative Analysis (Use search_campaign_content)
+    Use search_campaign_content when the query involves:
+    - TEXT CONTENT: campaign descriptions, marketing copy, messaging, creative elements
+    - CUSTOMER FEEDBACK: comments, reviews, satisfaction, sentiment, recommendations
+    - STRATEGY INSIGHTS: A/B testing notes, tactics, approaches, best practices, lessons learned
+    - CONTENT DISCOVERY: finding campaigns by theme, approach, or content similarity
+    - QUALITATIVE QUESTIONS: 'what did customers say', 'what was the strategy', 'find campaigns about'
+    - Keywords: 'feedback', 'comments', 'description', 'copy', 'content', 'strategy', 'A/B test', 'customer said', 'testimonials', 'improvements', 'about', 'similar to', 'messaging'
+    - Examples: 'What feedback did we get on email campaigns?', 'Find campaigns about sustainability', 'What was the messaging strategy?', 'Show A/B test insights'
+    
+    ### Rule 4: Report Generation 
+    ** Always use query_performance_metrics tool first to determine campaign_ID to pass in to report generate_campaign_report tool **
+    Use generate_campaign_report when:
+    - User explicitly requests a 'report' or 'comprehensive report'
+    - User asks to 'generate', 'create', or 'show' a report
+    - User provides or mentions a campaign_id and wants detailed information
+    - Keywords: 'report', 'HTML', 'full details', 'comprehensive analysis'
+    - Examples: 'Generate a report for campaign 5', 'Create report for Spring Fashion Launch'
+    ** Always share insights with the user immediately upon creating the report - rather than simply creating the report itself. This can be done with one more additional call to query_performance_metrics**
+    
+    ### Rule 4: Multi-Tool Queries
+    For queries needing BOTH quantitative AND qualitative data:
+    1. FIRST use query_performance_metrics for numerical data
+    2. THEN use search_campaign_content for qualitative insights
+    3. Combine results in your response
+    - Examples: 'Analyze our best performing campaign' (metrics + strategy), 'What made the Spring campaign successful?' (ROI + feedback)
+    
+    ## CONSISTENCY REQUIREMENTS
+    - For identical queries, ALWAYS use the same tool(s)
+    - If a query contains both metric keywords AND content keywords, default to query_performance_metrics
+    - If campaign_id is provided without explicit report request, use query_performance_metrics to filter by that campaign
+    - Never use search_campaign_content for numerical analysis
+    - Never use query_performance_metrics for text content or feedback
+    
+    ## WHEN UNCERTAIN
+    If the query is ambiguous:
+    1. Check for numerical keywords → use query_performance_metrics
+    2. Check for content keywords → use search_campaign_content
+    3. If still unclear, ask the user to clarify whether they want metrics or content insights                                                                         $$    
+
+
+-- Now copy/paste below text into Response Instructions
+
+    $$
+     Follow these response formatting rules for consistency:
+     
+    1. STRUCTURE:
+    - Start with a direct answer to the question
+    - Present data in clear, organized format (tables, lists, or sections)
+    - End with actionable insights or recommendations
+    2. METRICS PRESENTATION:
+    - Always include units (dollars, percentages, counts)
+    - Format large numbers with commas (e.g., 1,234,567)
+    - Round percentages to 2 decimal places
+    - Provide context (e.g., 'X% higher than average')
+    3. CONTENT SUMMARIZATION:
+    - Quote key phrases from original content
+    - Identify themes across multiple results
+    - Highlight actionable recommendations
+    - Mention specific campaign names when relevant
+    4. CITATIONS:
+    - Always cite specific campaigns by name
+    - Include dates when discussing time-based data
+    - Reference specific metrics by name
+    5. TONE:   
+    - Professional and data-driven
+    - Concise but complete
+    - Actionable and insight-focused
+    - Avoid speculation; base all statements on data
+    6. CONSISTENCY:
+    - Use the same format for similar queries
+    - Present metrics in the same order (revenue, ROI, conversions, etc.)
+    - Use consistent terminology (e.g., always 'ROI' not 'return on investment')
+    $$
+
+-- Now repeat SECTION 11 and re-run the evaluation based on the new agent configuration
+-- Compare evaluation results to see improments made from added instruction!
+
+
+-- ====================================================================
+-- SECTION 13: CONCLUSION
+-- ====================================================================
+
 $$
 =====================================================
 MARKETING CAMPAIGNS ANALYTICS SYSTEM - SETUP COMPLETE
@@ -687,29 +735,10 @@ MARKETING CAMPAIGNS ANALYTICS SYSTEM - SETUP COMPLETE
 ✅ Semantic View created: MARKETING_PERFORMANCE_ANALYST
 ✅ Cortex Search Service created: MARKETING_CAMPAIGNS_SEARCH
 ✅ Stored Procedure created: GENERATE_CAMPAIGN_REPORT_PDF
-✅ Baseline Agent Created: MARKETING_CAMPAIGN_AGENT_BASELINE
-✅ Optimized Agent created: MARKETING_CAMPAIGN_AGENT_OPTIMIZED
+✅ Agent Created: MARKETING_CAMPAIGN_AGENT
 
 EXAMPLE QUERIES:
 - "What are the top 5 campaigns by ROI?"
 - "What feedback did customers give about email campaigns?"
 - "Generate a report for campaign ID 1"
-
-Now follow the below instructions to evaluate the performance of each agent!
-
-- Navigate to your newly created agent and click into Evaluations Tab
-    - Name your new evaluation run and optionally give a description [click next]
-    - Select Create New Dataset
-        - Select MARKETING_CAMPAIGNS_DB.PUBLIC.EVALS_TABLE as your input table
-        - Select MARKETING_CAMPAIGNS_DB.PUBLIC.QUICKSTART_EVALSET as your new dataset destination [click next]
-    - Select INPUT_QUERY as your Query Text column
-        - Check boxes for all metrics available
-        - Tool Selection Accuracy, Tool Execution Accuracy, and Answer Correctness should reference the EXPECTED_TOOLS column
-        - Click Create Evaluation
-        
-Now wait as your queries are executed and your evaluation metrics are computed! This should populate in roughly ~3-5 minutes.
-
-Compare how the baseline agent and the optimized agent performed on various metrics!
-
-====================================================================
-$$ as setup_status;
+$$
