@@ -13,3 +13,8 @@ Try it yourself in the [developer guide](https://www.snowflake.com/en/developers
 ## Docs
 
 Cortex Agent Evaluations: https://docs.snowflake.com/LIMITEDACCESS/cortex-agent-evaluations
+
+## License
+
+Copyright (c) Snowflake Inc.  
+This project's codebase is licensed under the Apache License 2.0. You can find the full text of this license in the LICENSE file at the root of this repository.
