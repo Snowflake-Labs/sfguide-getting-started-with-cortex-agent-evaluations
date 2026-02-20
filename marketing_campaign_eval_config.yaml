@@ -1,5 +1,5 @@
 # Marketing Campaign Agent Evaluation Configuration
-# Evaluation metrics for execution efficiency and groundedness
+# Evaluation metrics for answer correctness, logical consistency, tool selection accuracy, execution efficiency and groundedness
 # Based on TruLens Agent GPA evaluation methodology
 
 # Optional: Create dataset from existing evals table
