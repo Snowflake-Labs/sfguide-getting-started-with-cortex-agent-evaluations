@@ -1,0 +1,124 @@
+# Marketing Campaign Agent Evaluation Configuration
+# Evaluation metrics for execution efficiency and groundedness
+# Based on TruLens Agent GPA evaluation methodology
+
+# Optional: Create dataset from existing evals table
+dataset:
+  dataset_type: "cortex agent"
+  table_name: "MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE"
+  dataset_name: "marketing_campaign_evalset"
+  column_mapping:
+    query_text: "INPUT_QUERY"
+    ground_truth: "GROUND_TRUTH_DATA"
+
+# Evaluation task configuration
+evaluation:
+  agent_params:
+    agent_name: "MARKETING_CAMPAIGNS_AGENT"
+    agent_type: "CORTEX AGENT"
+  run_params:
+    label: "Marketing Campaign Agent Evaluation"
+    description: "Evaluating execution efficiency and groundedness metrics for the marketing campaign analytics agent"
+  source_metadata:
+    type: "dataset"
+    dataset_name: "marketing_campaign_evalset"
+
+# Custom metrics with TruLens-inspired prompts
+metrics:
+  # Groundedness metric - TruLens style evaluation
+  # Evaluates whether the agent's response is supported by the execution trace
+  - name: "groundedness"
+    score_ranges:
+      min_score: [1, 3]
+      median_score: [4, 6]
+      max_score: [7, 10]
+    prompt: |
+      You are evaluating the groundedness of an AI agent's response. Groundedness measures 
+      whether each statement in the response is supported by the source information available 
+      in the agent's execution trace.
+      
+      For each claim or statement in the agent's response, determine if it can be directly 
+      inferred from the tool outputs, retrieved data, or other information in the trace.
+      
+      Agent Response to Evaluate:
+      {{output}}
+      
+      The complete agent execution trace is provided as context, including:
+      - All tool calls made (query_performance_metrics, search_campaign_content, generate_campaign_report)
+      - Tool outputs and retrieved data
+      - Intermediate reasoning steps
+      
+      Rate the groundedness from 1-10 where:
+      
+      1-3 (Low Groundedness):
+        - Response contains fabricated statistics or metrics not in the trace
+        - Claims are made without any supporting evidence from tool outputs
+        - Response contradicts information retrieved by tools
+      
+      4-6 (Partial Groundedness):
+        - Some statements are supported by the trace, others are not
+        - Response makes reasonable inferences but extends beyond available data
+        - Minor extrapolations or generalizations not fully backed by evidence
+      
+      7-10 (High Groundedness):
+        - All factual claims can be traced to specific tool outputs
+        - Statistics and metrics match those retrieved from data sources
+        - Recommendations and conclusions follow logically from available evidence
+        - Response appropriately cites or references the source information
+      
+      Consider:
+      - Are revenue figures, ROI percentages, and other metrics supported by query results?
+      - Are campaign descriptions and feedback quotes from the search results?
+      - Does the response avoid hallucinating details not present in the trace?
+
+  # Execution Efficiency metric - evaluates optimal tool usage and response time
+  - name: "execution_efficiency"
+    score_ranges:
+      min_score: [1, 3]
+      median_score: [4, 6]
+      max_score: [7, 10]
+    prompt: |
+      You are evaluating the execution efficiency of an AI agent that analyzes marketing 
+      campaigns. Execution efficiency measures how optimally the agent uses its available 
+      tools to accomplish the user's goal.
+      
+      The agent has access to three tools:
+      1. query_performance_metrics - For quantitative analysis (revenue, ROI, conversions, etc.)
+      2. search_campaign_content - For qualitative insights (descriptions, feedback, A/B tests)
+      3. generate_campaign_report - For creating comprehensive HTML reports
+      
+      Analyze the complete agent execution trace provided as context, including:
+      - Execution duration: {{duration}} milliseconds
+      - Tool calls made and their sequence
+      - Any errors encountered: {{error}}
+      - Execution status: {{status}}
+      
+      Rate the execution efficiency from 1-10 where:
+      
+      1-3 (Low Efficiency):
+        - Excessive or redundant tool calls for a simple query
+        - Wrong tool selected for the task (e.g., using search for metrics queries)
+        - Multiple failed attempts or errors that could have been avoided
+        - Very long execution duration relative to task complexity
+        - Unnecessary loops or repeated calls to the same tool
+      
+      4-6 (Moderate Efficiency):
+        - Appropriate tools selected but minor inefficiencies present
+        - Slightly more tool calls than necessary
+        - Reasonable execution time with room for optimization
+        - Some redundant data retrieval
+      
+      7-10 (High Efficiency):
+        - Optimal tool selection matching the query type
+        - Minimal number of tool calls needed to answer the question
+        - Fast execution duration appropriate for the task
+        - No redundant or unnecessary operations
+        - Efficient multi-tool orchestration when needed (e.g., metrics + content for comprehensive analysis)
+        - Direct path to solution without backtracking
+      
+      Consider:
+      - Did the agent use query_performance_metrics for numerical/metric questions?
+      - Did the agent use search_campaign_content for qualitative/content questions?
+      - For report generation, did it efficiently retrieve campaign ID before generating?
+      - Was the total number of tool calls appropriate for the query complexity?
+      - Could the same result have been achieved with fewer operations?
