@@ -23,15 +23,21 @@ evaluation:
     type: "dataset"
     dataset_name: "marketing_campaign_evalset"
 
-# Custom metrics with TruLens-inspired prompts
 metrics:
-  # Groundedness metric - TruLens style evaluation
+  # Built-in metrics
+  - "correctness"
+  - "logical_consistency"
+  - "tool_selection_accuracy"
+
+  # Custom Metrics
+
+  # Groundedness metric - TruLens Agent GPA based evaluation
   # Evaluates whether the agent's response is supported by the execution trace
   - name: "groundedness"
     score_ranges:
-      min_score: [1, 3]
-      median_score: [4, 6]
-      max_score: [7, 10]
+      min_score: [0, 0.33]
+      median_score: [0.34, 0.66]
+      max_score: [0.67, 1]
     prompt: |
       You are evaluating the groundedness of an AI agent's response. Groundedness measures 
       whether each statement in the response is supported by the source information available 
@@ -48,19 +54,19 @@ metrics:
       - Tool outputs and retrieved data
       - Intermediate reasoning steps
       
-      Rate the groundedness from 1-10 where:
+      Rate the groundedness using one of these scores:
       
-      1-3 (Low Groundedness):
+      0 (Not Grounded):
         - Response contains fabricated statistics or metrics not in the trace
         - Claims are made without any supporting evidence from tool outputs
         - Response contradicts information retrieved by tools
       
-      4-6 (Partial Groundedness):
+      0.5 (Partially Grounded):
         - Some statements are supported by the trace, others are not
         - Response makes reasonable inferences but extends beyond available data
         - Minor extrapolations or generalizations not fully backed by evidence
       
-      7-10 (High Groundedness):
+      1 (Fully Grounded):
         - All factual claims can be traced to specific tool outputs
         - Statistics and metrics match those retrieved from data sources
         - Recommendations and conclusions follow logically from available evidence
@@ -71,12 +77,13 @@ metrics:
       - Are campaign descriptions and feedback quotes from the search results?
       - Does the response avoid hallucinating details not present in the trace?
 
-  # Execution Efficiency metric - evaluates optimal tool usage and response time
+  # Execution Efficiency metric - TruLens Agent GPA based evaluation
+  # Evaluates how optimally the agent uses its available tools to accomplish the user's goal
   - name: "execution_efficiency"
     score_ranges:
-      min_score: [1, 3]
-      median_score: [4, 6]
-      max_score: [7, 10]
+      min_score: [0, 0.33]
+      median_score: [0.34, 0.66]
+      max_score: [0.67, 1]
     prompt: |
       You are evaluating the execution efficiency of an AI agent that analyzes marketing 
       campaigns. Execution efficiency measures how optimally the agent uses its available 
@@ -93,22 +100,22 @@ metrics:
       - Any errors encountered: {{error}}
       - Execution status: {{status}}
       
-      Rate the execution efficiency from 1-10 where:
+      Rate the execution efficiency using one of these scores:
       
-      1-3 (Low Efficiency):
+      0 (Inefficient):
         - Excessive or redundant tool calls for a simple query
         - Wrong tool selected for the task (e.g., using search for metrics queries)
         - Multiple failed attempts or errors that could have been avoided
         - Very long execution duration relative to task complexity
         - Unnecessary loops or repeated calls to the same tool
       
-      4-6 (Moderate Efficiency):
+      0.5 (Moderately Efficient):
         - Appropriate tools selected but minor inefficiencies present
         - Slightly more tool calls than necessary
         - Reasonable execution time with room for optimization
         - Some redundant data retrieval
       
-      7-10 (High Efficiency):
+      1 (Highly Efficient):
         - Optimal tool selection matching the query type
         - Minimal number of tool calls needed to answer the question
         - Fast execution duration appropriate for the task
