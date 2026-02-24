@@ -14,14 +14,14 @@
 # Evaluation task configuration
 evaluation:
   agent_params:
-    agent_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_AGENT
+    agent_name: MARKETING_CAMPAIGNS_DB.AGENT_DEV.MARKETING_CAMPAIGNS_AGENT
     agent_type: CORTEX AGENT
   run_params:
     label: Marketing Campaign Agent Evaluation
     description: Evaluating execution efficiency and groundedness metrics for the marketing campaign analytics agent
   source_metadata:
     type: dataset
-    dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET
+    dataset_name: MARKETING_CAMPAIGNS_DB.AGENT_DEV.MARKETING_CAMPAIGN_EVALSET
 
 metrics:
   # Built-in metrics
