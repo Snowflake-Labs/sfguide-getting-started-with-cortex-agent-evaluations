@@ -1,39 +1,39 @@
 # Marketing Campaign Agent Evaluation Configuration
-# Evaluation metrics for execution efficiency and groundedness
+# Evaluation metrics for answer correctness, logical consistency, tool selection accuracy, execution efficiency and groundedness
 # Based on TruLens Agent GPA evaluation methodology
 
-# Optional: Create dataset from existing evals table
-dataset:
-  dataset_type: "cortex agent"
-  table_name: "MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE"
-  dataset_name: "marketing_campaign_evalset"
-  column_mapping:
-    query_text: "INPUT_QUERY"
-    ground_truth: "GROUND_TRUTH_DATA"
+# Optional: Create dataset from existing evals table (we've already done this in the SETUP.sql)
+# dataset:
+#   dataset_type: cortex agent
+#   table_name: MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE
+#   dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET_YAML_CREATED
+#   column_mapping:
+#     query_text: INPUT_QUERY
+#     ground_truth: GROUND_TRUTH_DATA
 
 # Evaluation task configuration
 evaluation:
   agent_params:
-    agent_name: "MARKETING_CAMPAIGNS_AGENT"
-    agent_type: "CORTEX AGENT"
+    agent_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_AGENT
+    agent_type: CORTEX AGENT
   run_params:
-    label: "Marketing Campaign Agent Evaluation"
-    description: "Evaluating execution efficiency and groundedness metrics for the marketing campaign analytics agent"
+    label: Marketing Campaign Agent Evaluation
+    description: Evaluating execution efficiency and groundedness metrics for the marketing campaign analytics agent
   source_metadata:
-    type: "dataset"
-    dataset_name: "marketing_campaign_evalset"
+    type: dataset
+    dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET
 
 metrics:
   # Built-in metrics
-  - "correctness"
-  - "logical_consistency"
-  - "tool_selection_accuracy"
+  - correctness
+  - logical_consistency
+  - tool_selection_accuracy
 
   # Custom Metrics
 
   # Groundedness metric - TruLens Agent GPA based evaluation
   # Evaluates whether the agent's response is supported by the execution trace
-  - name: "groundedness"
+  - name: groundedness
     score_ranges:
       min_score: [0, 0.33]
       median_score: [0.34, 0.66]
@@ -79,7 +79,7 @@ metrics:
 
   # Execution Efficiency metric - TruLens Agent GPA based evaluation
   # Evaluates how optimally the agent uses its available tools to accomplish the user's goal
-  - name: "execution_efficiency"
+  - name: execution_efficiency
     score_ranges:
       min_score: [0, 0.33]
       median_score: [0.34, 0.66]
