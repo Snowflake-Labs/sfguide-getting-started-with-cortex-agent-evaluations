@@ -14,20 +14,19 @@
 # Evaluation task configuration
 evaluation:
   agent_params:
-    agent_name: MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_CAMPAIGNS_AGENT
+    agent_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_AGENT
     agent_type: CORTEX AGENT
   run_params:
     label: Marketing Campaign Agent Evaluation
-    description: Evaluating execution efficiency and groundedness metrics for the marketing campaign analytics agent
+    description: Evaluating Answer Correctness, Logical Consistency, Execution Efficiency and Groundedness metrics for the marketing campaign analytics agent
   source_metadata:
     type: dataset
-    dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_CAMPAIGN_EVALSET
+    dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET
 
 metrics:
   # Built-in metrics
   - correctness
   - logical_consistency
-  - tool_selection_accuracy
 
   # Custom Metrics
 
@@ -54,7 +53,7 @@ metrics:
       - Tool outputs and retrieved data
       - Intermediate reasoning steps
       
-      Rate the groundedness using one of these scores:
+       Here are a few examples of groundedness scores:
       
       0 (Not Grounded):
         - Response contains fabricated statistics or metrics not in the trace
@@ -76,6 +75,7 @@ metrics:
       - Are revenue figures, ROI percentages, and other metrics supported by query results?
       - Are campaign descriptions and feedback quotes from the search results?
       - Does the response avoid hallucinating details not present in the trace?
+      - If the question is a general LLM query or inquiry about the agents capabilities - tool calls are not expected. 
 
   # Execution Efficiency metric - TruLens Agent GPA based evaluation
   # Evaluates how optimally the agent uses its available tools to accomplish the user's goal
@@ -100,7 +100,7 @@ metrics:
       - Any errors encountered: {{error}}
       - Execution status: {{status}}
       
-      Rate the execution efficiency using one of these scores:
+      Here are a few examples of execution efficiency scores:
       
       0 (Inefficient):
         - Excessive or redundant tool calls for a simple query
