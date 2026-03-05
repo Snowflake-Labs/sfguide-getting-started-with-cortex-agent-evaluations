@@ -38,44 +38,49 @@ metrics:
       median_score: [0.34, 0.66]
       max_score: [0.67, 1]
     prompt: |
-      You are evaluating the groundedness of an AI agent's response. Groundedness measures 
-      whether each statement in the response is supported by the source information available 
-      in the agent's execution trace.
-      
-      For each claim or statement in the agent's response, determine if it can be directly 
-      inferred from the tool outputs, retrieved data, or other information in the trace.
-      
+      You are evaluating the groundedness of an AI agent's response. Groundedness measures
+      whether each substantive claim in the response is supported by concrete evidence in
+      the execution trace.
+
+      IMPORTANT: Evaluate claim-to-result alignment, not claim-to-tool-type alignment.
+      A claim is grounded only if the required evidence appears in actual tool outputs,
+      retrieved rows/snippets, report outputs, or other trace context.
+
       Agent Response to Evaluate:
       {{output}}
-      
+
       The complete agent execution trace is provided as context, including:
       - All tool calls made (query_performance_metrics, search_campaign_content, generate_campaign_report)
       - Tool outputs and retrieved data
       - Intermediate reasoning steps
-      
-       Here are a few examples of groundedness scores:
-      
+
+      Here are a few examples of groundedness scores:
+
       0 (Not Grounded):
-        - Response contains fabricated statistics or metrics not in the trace
-        - Claims are made without any supporting evidence from tool outputs
-        - Response contradicts information retrieved by tools
-      
+        - Key claims are unsupported, contradicted, or fabricated relative to tool results
+        - Superlative/comparative conclusions ("most compelling", "most alike", "best")
+          are made without evidence from returned results
+        - Report responses invent artifact details, KPIs, or findings not present in outputs
+
       0.5 (Partially Grounded):
-        - Some statements are supported by the trace, others are not
-        - Response makes reasonable inferences but extends beyond available data
-        - Minor extrapolations or generalizations not fully backed by evidence
-      
+        - Some important claims are evidence-backed, but at least one material conclusion
+          is weakly supported or not directly shown in results
+        - Comparison conclusion is plausible but incomplete (limited evidence or missing tie-break rationale)
+        - Report output details are partially accurate but omit or blur key result-backed facts
+
       1 (Fully Grounded):
-        - All factual claims can be traced to specific tool outputs
-        - Statistics and metrics match those retrieved from data sources
-        - Recommendations and conclusions follow logically from available evidence
-        - Response appropriately cites or references the source information
-      
+        - All material claims are traceable to concrete evidence in tool results
+        - Metrics, campaign attributes, and report details match retrieved outputs
+        - Comparative/superlative conclusions are justified using explicit evidence
+        - When evidence is incomplete, the response states uncertainty instead of guessing
+
       Consider:
-      - Are revenue figures, ROI percentages, and other metrics supported by query results?
-      - Are campaign descriptions and feedback quotes from the search results?
-      - Does the response avoid hallucinating details not present in the trace?
-      - If the question is a general LLM query or inquiry about the agents capabilities - tool calls are not expected. 
+      - Are revenue figures, ROI percentages, and other metrics supported by result rows?
+      - Are campaign descriptions, A/B notes, and feedback grounded in returned snippets?
+      - For report requests, does the response accurately reflect report generation output
+        (artifact/link/name) and avoid fabricated details?
+      - For capability/meta queries, tool calls may be unnecessary; still require claims
+        to align with supported behavior and trace context, without over-claiming.
 
   # Execution Efficiency metric - TruLens Agent GPA based evaluation
   # Evaluates how optimally the agent uses its available tools to accomplish the user's goal
@@ -101,34 +106,32 @@ metrics:
       - Execution status: {{status}}
       
       Here are a few examples of execution efficiency scores:
-      
+
       0 (Inefficient):
-        - Excessive or redundant tool calls for a simple query
-        - Wrong tool selected for the task (e.g., using search for metrics queries)
-        - Multiple failed attempts or errors that could have been avoided
-        - Very long execution duration relative to task complexity
-        - Unnecessary loops or repeated calls to the same tool
-      
+        - Excessive or redundant tool calls relative to query complexity
+        - Repeated broad searches when one or two focused retrievals would suffice
+        - Multiple avoidable retries, loops, or backtracking steps
+        - Very long execution duration without proportional complexity
+        - Unnecessary tool chains for capability/meta questions
+
       0.5 (Moderately Efficient):
-        - Appropriate tools selected but minor inefficiencies present
-        - Slightly more tool calls than necessary
-        - Reasonable execution time with room for optimization
-        - Some redundant data retrieval
-      
+        - Reasonable path but with one notable inefficiency
+        - Slightly more calls than necessary, or avoidable duplicate retrieval
+        - Mostly direct flow with minor backtracking
+
       1 (Highly Efficient):
-        - Optimal tool selection matching the query type
-        - Minimal number of tool calls needed to answer the question
-        - Fast execution duration appropriate for the task
-        - No redundant or unnecessary operations
-        - Efficient multi-tool orchestration when needed (e.g., metrics + content for comprehensive analysis)
-        - Direct path to solution without backtracking
-      
+        - Minimal sensible path from request to answer
+        - Tool sequence is concise and dependency-aware
+        - No redundant retrievals or unnecessary calls
+        - Execution time is appropriate for task complexity
+
       Consider:
-      - Did the agent use query_performance_metrics for numerical/metric questions?
-      - Did the agent use search_campaign_content for qualitative/content questions?
-      - For report generation, did it efficiently retrieve campaign ID before generating?
-      - Was the total number of tool calls appropriate for the query complexity?
-      - Could the same result have been achieved with fewer operations?
+      - For report requests, was the flow efficient (identify campaign if needed ->
+        generate report -> optional concise support fetch)?
+      - For vague comparison questions, did the agent avoid repeated unfocused searches?
+      - For capability/meta queries, did it avoid unnecessary tool execution?
+      - Could the same result have been achieved with fewer calls or a tighter sequence?
+      - Focus on path efficiency and redundancy, not factual claim support.
 
   # Tool Selection metric - TruLens Agent GPA based evaluation
   # Evaluates whether the agent chose the most appropriate tools for each subtask
@@ -138,9 +141,9 @@ metrics:
       median_score: [0.34, 0.66]
       max_score: [0.67, 1]
     prompt: |
-      You are evaluating the tool selection quality of an AI agent that analyzes marketing
-      campaigns. Tool selection measures whether the agent chooses the most suitable tools
-      for each subtask given the user request and tool capabilities.
+      You are evaluating tool selection as a sub-problem routing task for an AI agent that
+      analyzes marketing campaigns. Score whether the agent decomposes the query into
+      required sub-problems and maps each sub-problem to the right tool(s).
 
       The agent has access to three tools:
       1. query_performance_metrics - For quantitative analysis (revenue, ROI, conversions, etc.)
@@ -149,36 +152,47 @@ metrics:
 
       Analyze the complete agent execution trace provided as context, including:
       - Tool calls made and their sequence
-      - User intent and subtask requirements
+      - User intent and required sub-problems
       - Any tools used when no tool was necessary
-      - Any missed opportunities to use a better available tool
+      - Any required sub-problems that were skipped
+
+      Sub-problem routing expectations:
+      - Entity resolution / campaign ID lookup -> query_performance_metrics (or equivalent structured lookup)
+      - Quantitative KPIs, rankings, trends, calculations -> query_performance_metrics
+      - Qualitative strategy, A/B notes, feedback, similarity -> search_campaign_content
+      - Report artifact creation -> generate_campaign_report only when explicitly requested
+      - Capability/meta intent ("What can you help me with?") -> usually no data tools
+
+      For each query:
+      1. Identify required sub-problems.
+      2. Check if each sub-problem has an appropriate tool mapping.
+      3. Check if sequence respects dependencies.
+      4. Check for unnecessary tool calls.
 
       Here are a few examples of tool selection scores:
 
       0 (Poor Tool Selection):
-        - Frequently chooses irrelevant or ill-suited tools for the query
-        - Ignores clearly better tools that were available
-        - Uses tools for tasks that could be handled directly without a tool
-        - Selects tools that do not match user intent or subtask needs
-        - Disregards tool-specific instructions or constraints
+        - Multiple required sub-problems are mapped to wrong tools
+        - Important sub-problems are omitted entirely
+        - Tool sequence breaks dependency order (e.g., required lookup skipped before dependent step)
+        - Uses report generation without explicit report request
+        - Uses data tools unnecessarily for capability/meta questions
 
       0.5 (Moderate Tool Selection):
-        - Generally appropriate tool choices with occasional mismatches
-        - Some missed opportunities where a better tool existed
-        - Minor unnecessary tool use for simple internal reasoning tasks
-        - Most subtasks are handled by reasonable tools, but not always optimally
+        - Most sub-problems are mapped correctly, but one important mapping is wrong or missing
+        - Sequence is mostly reasonable with minor dependency issues
+        - Includes one notable unnecessary tool call
 
       1 (Excellent Tool Selection):
-        - Consistently selects the best tool for each subtask
-        - Tool choices align directly with user intent and task requirements
-        - Avoids unnecessary tool calls when internal reasoning is sufficient
-        - Demonstrates clear awareness of tool capabilities and limitations
-        - Uses multi-tool strategies only when they are genuinely needed
+        - Correctly decomposes query into required sub-problems
+        - Maps each sub-problem to the most appropriate tool(s)
+        - Uses multi-tool workflows when needed and in correct dependency order
+        - Avoids unnecessary tools, especially for capability/meta prompts
 
       Consider:
-      - Did the agent choose query_performance_metrics for numerical/metric analysis?
-      - Did the agent choose search_campaign_content for qualitative/content retrieval?
-      - Did it use generate_campaign_report only when a report output was actually needed?
-      - Did it avoid tool use when a tool was not necessary?
-      - Were chosen tools the most suitable options among all available tools?
-      - Focus only on tool choice quality, not tool call syntax, runtime efficiency, or plan adherence.
+      - Were quantitative and qualitative sub-problems routed to the correct tools?
+      - For vague comparison prompts (e.g., most compelling A/B results, most alike campaigns),
+        did the agent include qualitative retrieval via search_campaign_content?
+      - Did report generation appear only with explicit report intent?
+      - Were capability/meta prompts handled without unnecessary tool calls?
+      - Focus only on routing and tool-subproblem mapping quality, not output correctness or runtime.
