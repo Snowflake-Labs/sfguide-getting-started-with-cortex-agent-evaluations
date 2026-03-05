@@ -129,3 +129,56 @@ metrics:
       - For report generation, did it efficiently retrieve campaign ID before generating?
       - Was the total number of tool calls appropriate for the query complexity?
       - Could the same result have been achieved with fewer operations?
+
+  # Tool Selection metric - TruLens Agent GPA based evaluation
+  # Evaluates whether the agent chose the most appropriate tools for each subtask
+  - name: tool_selection
+    score_ranges:
+      min_score: [0, 0.33]
+      median_score: [0.34, 0.66]
+      max_score: [0.67, 1]
+    prompt: |
+      You are evaluating the tool selection quality of an AI agent that analyzes marketing
+      campaigns. Tool selection measures whether the agent chooses the most suitable tools
+      for each subtask given the user request and tool capabilities.
+
+      The agent has access to three tools:
+      1. query_performance_metrics - For quantitative analysis (revenue, ROI, conversions, etc.)
+      2. search_campaign_content - For qualitative insights (descriptions, feedback, A/B tests)
+      3. generate_campaign_report - For creating comprehensive HTML reports
+
+      Analyze the complete agent execution trace provided as context, including:
+      - Tool calls made and their sequence
+      - User intent and subtask requirements
+      - Any tools used when no tool was necessary
+      - Any missed opportunities to use a better available tool
+
+      Here are a few examples of tool selection scores:
+
+      0 (Poor Tool Selection):
+        - Frequently chooses irrelevant or ill-suited tools for the query
+        - Ignores clearly better tools that were available
+        - Uses tools for tasks that could be handled directly without a tool
+        - Selects tools that do not match user intent or subtask needs
+        - Disregards tool-specific instructions or constraints
+
+      0.5 (Moderate Tool Selection):
+        - Generally appropriate tool choices with occasional mismatches
+        - Some missed opportunities where a better tool existed
+        - Minor unnecessary tool use for simple internal reasoning tasks
+        - Most subtasks are handled by reasonable tools, but not always optimally
+
+      1 (Excellent Tool Selection):
+        - Consistently selects the best tool for each subtask
+        - Tool choices align directly with user intent and task requirements
+        - Avoids unnecessary tool calls when internal reasoning is sufficient
+        - Demonstrates clear awareness of tool capabilities and limitations
+        - Uses multi-tool strategies only when they are genuinely needed
+
+      Consider:
+      - Did the agent choose query_performance_metrics for numerical/metric analysis?
+      - Did the agent choose search_campaign_content for qualitative/content retrieval?
+      - Did it use generate_campaign_report only when a report output was actually needed?
+      - Did it avoid tool use when a tool was not necessary?
+      - Were chosen tools the most suitable options among all available tools?
+      - Focus only on tool choice quality, not tool call syntax, runtime efficiency, or plan adherence.
