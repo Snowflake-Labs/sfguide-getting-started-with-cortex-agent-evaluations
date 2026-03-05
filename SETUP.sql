@@ -25,8 +25,8 @@ USE ROLE ACCOUNTADMIN;
 
 -- Create database using variable
 CREATE DATABASE IF NOT EXISTS MARKETING_CAMPAIGNS_DB;
-CREATE OR REPLACE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV;
-USE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV;
+CREATE OR REPLACE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS;
+USE SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS;
 CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH WAREHOUSE_SIZE='SMALL';
 
 
@@ -45,9 +45,9 @@ GRANT ROLE AGENT_EVAL_ROLE to USER IDENTIFIER($AGENT_EVAL_USER);
 
 -- Usage on DB and Schema
 GRANT USAGE ON DATABASE MARKETING_CAMPAIGNS_DB TO ROLE AGENT_EVAL_ROLE;
-GRANT USAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE TABLE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE STAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT USAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE TABLE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE STAGE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 
 
 -- Specialized db/application roles
@@ -55,31 +55,42 @@ GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE AGENT_EVAL_ROLE;
 GRANT APPLICATION ROLE SNOWFLAKE.AI_OBSERVABILITY_EVENTS_LOOKUP TO ROLE AGENT_EVAL_ROLE;
 
 -- Create Datasets
-GRANT CREATE FILE FORMAT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE DATASET ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE FILE FORMAT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE DATASET ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 
 -- Create and execute tasks
-GRANT CREATE TASK ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE TASK ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 GRANT EXECUTE TASK ON ACCOUNT TO ROLE AGENT_EVAL_ROLE;
 
 -- Run evaluations
-GRANT MONITOR ON FUTURE AGENTS IN SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT MONITOR ON FUTURE AGENTS IN SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 
--- Impersonate user to execute eval runs
-GRANT IMPERSONATE ON USER IDENTIFIER($AGENT_EVAL_USER) TO ROLE AGENT_EVAL_ROLE;
-
--- Warehouse usage
+-- Warehouse usage on COMPUTE_WH and on User's defualt WH (which is used for eval tasks)
 GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE AGENT_EVAL_ROLE;
+
+EXECUTE IMMEDIATE $$
+DECLARE
+    wh_name VARCHAR;
+BEGIN
+    EXECUTE IMMEDIATE 'DESC USER ' || CURRENT_USER();
+    SELECT "value" INTO wh_name 
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) 
+    WHERE "property" = 'DEFAULT_WAREHOUSE';
+    
+    EXECUTE IMMEDIATE 'GRANT USAGE ON WAREHOUSE ' || wh_name || ' TO ROLE AGENT_EVAL_ROLE';
+    RETURN 'Granted USAGE on ' || wh_name;
+END;
+$$;
 
 -- Git setup
 GRANT CREATE API INTEGRATION ON ACCOUNT TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE GIT REPOSITORY ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE GIT REPOSITORY ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 
 -- Service and Agent creation
-GRANT CREATE SEMANTIC VIEW ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE CORTEX SEARCH SERVICE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE PROCEDURE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
-GRANT CREATE AGENT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS_DEV TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE SEMANTIC VIEW ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE CORTEX SEARCH SERVICE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE PROCEDURE ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
+GRANT CREATE AGENT ON SCHEMA MARKETING_CAMPAIGNS_DB.AGENTS TO ROLE AGENT_EVAL_ROLE;
 
 -- ============================================================================
 -- SECTION 3: CREATE GIT INTEGRATION (for loading CSV files from repo)
@@ -105,6 +116,8 @@ ALTER GIT REPOSITORY CORTEX_AGENT_QUICKSTART_REPO FETCH;
 -- Verify repository
 SHOW GIT BRANCHES IN CORTEX_AGENT_QUICKSTART_REPO;
 LS @CORTEX_AGENT_QUICKSTART_REPO/branches/main/data;
+LS @CORTEX_AGENT_QUICKSTART_REPO/branches/"josh/custom_metrics_yaml"/data;
+
 
 
 -- ============================================================================
@@ -212,15 +225,15 @@ FROM @CORTEX_AGENT_QUICKSTART_REPO/branches/main/data/CAMPAIGN_FEEDBACK.csv (FIL
 -- Create EVALS_TABLE table
 CREATE OR REPLACE TABLE EVALS_TABLE (
     INPUT_QUERY TEXT,
-    EXPECTED_TOOLS VARCHAR);
+    GROUND_TRUTH_DATA VARCHAR);
 
 -- Populate EVALS_TABLE table
-INSERT INTO EVALS_TABLE (input_query, expected_tools)
+INSERT INTO EVALS_TABLE (input_query, ground_truth_data)
 SELECT $1, $2
-FROM @CORTEX_AGENT_QUICKSTART_REPO/branches/main/data/EVALS_TABLE.csv (FILE_FORMAT=>AGENT_EVAL_QUICKSTART_CSV_FORMAT);
+FROM @CORTEX_AGENT_QUICKSTART_REPO/branches/"josh/custom_metrics_yaml"/data/EVALS_TABLE.csv (FILE_FORMAT=>AGENT_EVAL_QUICKSTART_CSV_FORMAT);
 
 CREATE OR REPLACE TABLE EVALS_TABLE
-AS SELECT INPUT_QUERY, PARSE_JSON(EXPECTED_TOOLS) AS GROUND_TRUTH_DATA
+AS SELECT INPUT_QUERY, PARSE_JSON(GROUND_TRUTH_DATA) AS GROUND_TRUTH_DATA
 FROM EVALS_TABLE;
 
 
@@ -455,7 +468,7 @@ BEGIN
 SELECT CURRENT_ORGANIZATION_NAME(), CURRENT_ACCOUNT_NAME() 
   INTO ORG_NAME, ACCOUNT_NAME;
   
-  upload_result := 'Report '|| file_name || ' generated and uploaded to stage. View here - https://app.snowflake.com/'|| ORG_NAME ||'/' || ACCOUNT_NAME ||'/#/data/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS_DEV/stage/CAMPAIGN_REPORTS';
+  upload_result := 'Report '|| file_name || ' generated and uploaded to stage. View here - https://app.snowflake.com/'|| ORG_NAME ||'/' || ACCOUNT_NAME ||'/#/data/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS/stage/CAMPAIGN_REPORTS';
 
   
   RETURN upload_result;
@@ -559,7 +572,7 @@ FROM SPECIFICATION $$
                 "type": "warehouse",
                 "warehouse": "COMPUTE_WH"
             },
-            "semantic_view": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_PERFORMANCE_ANALYST"
+            "semantic_view": "MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_PERFORMANCE_ANALYST"
         },
         "search_campaign_content": {
             "execution_environment": {
@@ -567,11 +580,11 @@ FROM SPECIFICATION $$
                 "type": "warehouse",
                 "warehouse": "COMPUTE_WH"
             },
-            "search_service": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_CAMPAIGNS_SEARCH"
+            "search_service": "MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_SEARCH"
         },
         "generate_campaign_report": {
             "type": "procedure",
-            "identifier": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.GENERATE_CAMPAIGN_REPORT_HTML",
+            "identifier": "MARKETING_CAMPAIGNS_DB.AGENTS.GENERATE_CAMPAIGN_REPORT_HTML",
             "execution_environment": {
                 "type": "warehouse",
                 "warehouse": "COMPUTE_WH",
@@ -598,8 +611,8 @@ Optionally follow the below instructions to use the Agents UI to evaluate the pe
 - Navigate to your newly created agent and click into Evaluations Tab
     - Name your new evaluation run and optionally give a description [click next]
     - Select Create New Dataset
-        - Select MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVALS_TABLE as your input table
-        - Select MARKETING_CAMPAIGNS_DB.AGENTS_DEV.QUICKSTART_EVALSET as your new dataset destination [click next]
+        - Select MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE as your input table
+        - Select MARKETING_CAMPAIGNS_DB.AGENTS.QUICKSTART_EVALSET as your new dataset destination [click next]
     - Select INPUT_QUERY as your Query Text column
         - Check boxes for all metrics available
         - Tool Selection Accuracy, Tool Execution Accuracy, and Answer Correctness should reference the EXPECTED_TOOLS column
@@ -619,8 +632,8 @@ $$ as setup_status;
 -- First we will create a dataset to use for evaluating our agent
 CALL SYSTEM$CREATE_EVALUATION_DATASET(
     'Cortex Agent',
-    'MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVALS_TABLE',
-    'MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_CAMPAIGN_EVALSET',
+    'MARKETING_CAMPAIGNS_DB.AGENTS.EVALS_TABLE',
+    'MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET',
     OBJECT_CONSTRUCT('query_text', 'INPUT_QUERY', 'expected_tools', 'GROUND_TRUTH_DATA'));
 
 
@@ -628,23 +641,23 @@ CALL SYSTEM$CREATE_EVALUATION_DATASET(
 SHOW DATASETS;
 
 -- Next we will create a stage to store our evaluation config file
-CREATE OR REPLACE STAGE MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE
+CREATE OR REPLACE STAGE MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE
   DIRECTORY = (ENABLE = TRUE)
   COMMENT = 'Internal stage to host evaluation config files';
 
 -- Copy file from git repo to stage
-COPY FILES INTO @MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE
+COPY FILES INTO @MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE
 FROM @CORTEX_AGENT_QUICKSTART_REPO/branches/"josh/custom_metrics_yaml"/
 FILES = ('marketing_campaign_eval_config.yaml');
 
 -- Confirm yaml was uploaded
-LS @MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE;
+LS @MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE;
 
 -- Kickoff evaluation run using yaml config
 CALL EXECUTE_AI_EVALUATION(
   'START',
   OBJECT_CONSTRUCT('run_name', 'BASELINE_MARKETING_AGENT_EVAL_RUN'),
-  '@MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
+  '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
 );
 
 
@@ -652,16 +665,47 @@ CALL EXECUTE_AI_EVALUATION(
 CALL EXECUTE_AI_EVALUATION( 
   'STATUS',
   OBJECT_CONSTRUCT('run_name', 'BASELINE_MARKETING_AGENT_EVAL_RUN'),
-  '@MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
+  '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
 );
+
+-- Iteratively check status of evaluation run and wait to proceed until eval is completed
+
+DECLARE
+    run_name VARCHAR DEFAULT 'BASELINE_MARKETING_AGENT_EVAL_RUN';
+    config_path VARCHAR DEFAULT '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml';
+    max_wait_seconds NUMBER DEFAULT 600;
+    poll_interval_seconds NUMBER DEFAULT 20;
+    status_val VARCHAR;
+    elapsed NUMBER DEFAULT 0;
+BEGIN
+    LOOP
+        CALL EXECUTE_AI_EVALUATION('STATUS', OBJECT_CONSTRUCT('run_name', :run_name), :config_path);
+        LET status_cursor CURSOR FOR SELECT STATUS FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+        OPEN status_cursor;
+        FETCH status_cursor INTO status_val;
+        CLOSE status_cursor;
+        
+        IF (status_val = 'COMPLETED') THEN
+            RETURN 'COMPLETED after ' || :elapsed || ' seconds';
+        ELSEIF (status_val IN ('FAILED', 'ERROR')) THEN
+            RETURN 'FAILED';
+        ELSEIF (status_val = 'CANCELLED') THEN
+            RETURN 'CANCELLED';
+        END IF;
+        
+        IF (elapsed >= :max_wait_seconds) THEN
+            RETURN 'TIMEOUT after ' || :max_wait_seconds || ' seconds';
+        END IF;
+        
+        CALL SYSTEM$WAIT(:poll_interval_seconds);
+        elapsed := elapsed + :poll_interval_seconds;
+    END LOOP;
+END;
 
 
 -- ====================================================================
 -- SECTION 13: AGENT OPTIMIZATION
 -- ====================================================================
-
--- Check existing agent config
-DESCRIBE AGENT MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_AGENT;
 
 -- Update agent instructions and tool descriptions 
 ALTER AGENT MARKETING_CAMPAIGNS_AGENT
@@ -671,8 +715,51 @@ MODIFY LIVE VERSION SET SPECIFICATION =  $$
     "orchestration": "auto"
   },
   "instructions": {
-    "orchestration": "You are the Marketing Campaigns Analyst, a specialized assistant for analyzing marketing campaign performance, customer feedback, and generating comprehensive reports.\n\n## Tool Selection Guidelines\n\n**For QUANTITATIVE questions (metrics, numbers, trends, comparisons):**\nUse `query_performance_metrics` FIRST.\nExamples: ROI, revenue, conversions, impressions, clicks, engagement rates, cost metrics, time series trends, campaign comparisons by numbers.\n\n**For QUALITATIVE questions (content, feedback, strategy, themes):**\nUse `search_campaign_content` FIRST.\nExamples: Customer feedback, marketing copy, A/B test results, campaign descriptions, recommendations, strategy insights.\n\n**For questions requiring BOTH quantitative AND qualitative data:**\n1. Start with `search_campaign_content` to identify the campaign and understand context\n2. Then use `query_performance_metrics` to get specific metrics\nExamples: \"What are key themes AND financial metrics for X campaign?\"\n\n**For REPORT GENERATION requests:**\n1. FIRST use `query_performance_metrics` to get the campaign_id by querying for the campaign name\n2. Then call `generate_campaign_report` with the campaign_id\n3. If generate_campaign_report fails, fall back to manually assembling the report using query_performance_metrics and search_campaign_content\n\n## Critical Rules\n\n1. **Minimize tool calls**: Aim for 1-2 tool calls per question. Do NOT make redundant calls.\n2. **Get campaign_id correctly**: When generating reports, query for campaign_id by campaign_name FIRST.\n3. **Handle errors gracefully**: If a tool fails, acknowledge the error and try an alternative approach.\n4. **Be specific in queries**: Use exact campaign names when filtering. Avoid overly broad queries.\n5. **For similarity/comparison questions**: Search ALL campaigns first to understand the full landscape before making comparisons. Consider content themes, target audience, and strategy - not just metrics.",
-    "response": "## Response Format\n\n- Lead with the direct answer, then provide supporting details\n- Use markdown formatting: headers (##), bold (**), and bullet points\n- For metrics, always include the specific numbers and units (%, $, count)\n- Use tables for multi-row data (3+ items)\n- Include campaign dates/duration when relevant\n\n## Tone\n- Be concise and professional\n- State facts directly without hedging (\"it appears\", \"it seems\")\n- When data is unavailable, clearly state what's missing and suggest alternatives\n\n## Error Handling\n- If a query returns no results, explain why and suggest alternative approaches\n- If a tool fails, acknowledge the error before trying alternatives\n- Never fabricate data - only report what was retrieved from tools",
+    "orchestration": "You are a marketing campaigns analytics agent with three specialized tools. Follow these STRICT routing rules to ensure consistent tool selection:
+
+## TOOL ROUTING RULES (Apply in order)
+
+### Rule 1: Quantitative Analysis (Use query_performance_metrics) Use query_performance_metrics when the query involves: - NUMERICAL METRICS: revenue, ROI, conversions, clicks, impressions, costs, budget, engagement rates - CALCULATIONS: totals, averages, percentages, ratios, growth rates, trends over time - COMPARISONS: top/bottom campaigns, ranking, channel comparison, time period analysis - AGGREGATIONS: sum, count, average, min, max by dimensions like channel, type, audience - PERFORMANCE QUESTIONS: 'how much', 'how many', 'what is the rate', 'calculate' - Keywords: 'revenue', 'ROI', 'cost', 'conversions', 'clicks', 'performance', 'metrics', 'total', 'average', 'rate', 'top', 'bottom', 'best', 'worst', 'compare' - Examples: 'What was total revenue by channel?', 'Which campaigns had highest ROI?', 'Show me conversion rates over time', 'Compare email vs social performance'
+### Rule 3: Qualitative Analysis (Use search_campaign_content) Use search_campaign_content when the query involves: - TEXT CONTENT: campaign descriptions, marketing copy, messaging, creative elements - CUSTOMER FEEDBACK: comments, reviews, satisfaction, sentiment, recommendations - STRATEGY INSIGHTS: A/B testing notes, tactics, approaches, best practices, lessons learned - CONTENT DISCOVERY: finding campaigns by theme, approach, or content similarity - QUALITATIVE QUESTIONS: 'what did customers say', 'what was the strategy', 'find campaigns about' - Keywords: 'feedback', 'comments', 'description', 'copy', 'content', 'strategy', 'A/B test', 'customer said', 'testimonials', 'improvements', 'about', 'similar to', 'messaging' - Examples: 'What feedback did we get on email campaigns?', 'Find campaigns about sustainability', 'What was the messaging strategy?', 'Show A/B test insights'
+### Rule 4: Report Generation ** Always use query_performance_metrics tool first to determine campaign_ID to pass in to report generate_campaign_report tool ** Use generate_campaign_report when: - User explicitly requests a 'report' or 'comprehensive report' - User asks to 'generate', 'create', or 'show' a report - User provides or mentions a campaign_id and wants detailed information - Keywords: 'report', 'HTML', 'full details', 'comprehensive analysis' - Examples: 'Generate a report for campaign 5', 'Create report for Spring Fashion Launch' ** Always share insights with the user immediately upon creating the report - rather than simply creating the report itself . This can be done with one more additional call to query_performance_metrics**
+### Rule 4: Multi-Tool Queries For queries needing BOTH quantitative AND qualitative data: 1. FIRST use query_performance_metrics for numerical data 2. THEN use search_campaign_content for qualitative insights 3. Combine results in your response - Examples: 'Analyze our best performing campaign' (metrics + strategy), 'What made the Spring campaign successful?' (ROI + feedback)
+## CONSISTENCY REQUIREMENTS - For identical queries, ALWAYS use the same tool(s) - If a query contains both metric keywords AND content keywords, default to query_performance_metrics - If campaign_id is provided without explicit report request, use query_performance_metrics to filter by that campaign - Never use search_campaign_content for numerical analysis - Never use query_performance_metrics for text content or feedback
+## WHEN UNCERTAIN If the query is ambiguous: 1. Check for numerical keywords → use query_performance_metrics 2. Check for content keywords → use search_campaign_content 3. If still unclear, ask the user to clarify whether they want metrics or content insights"
+,
+    "response": "Follow these response formatting rules for consistency:
+
+1. STRUCTURE:
+   - Start with a direct answer to the question
+   - Present data in clear, organized format (tables, lists, or sections)
+   - End with actionable insights or recommendations
+
+2. METRICS PRESENTATION:
+   - Always include units (dollars, percentages, counts)
+   - Format large numbers with commas (e.g., 1,234,567)
+   - Round percentages to 2 decimal places
+   - Provide context (e.g., 'X% higher than average')
+
+3. CONTENT SUMMARIZATION:
+   - Quote key phrases from original content
+   - Identify themes across multiple results
+   - Highlight actionable recommendations
+   - Mention specific campaign names when relevant
+
+4. CITATIONS:
+   - Always cite specific campaigns by name
+   - Include dates when discussing time-based data
+   - Reference specific metrics by name
+
+5. TONE:
+   - Professional and data-driven
+   - Concise but complete
+   - Actionable and insight-focused
+   - Avoid speculation; base all statements on data
+
+6. CONSISTENCY:
+   - Use the same format for similar queries
+   - Present metrics in the same order (revenue, ROI, conversions, etc.)
+   - Use consistent terminology (e.g., always 'ROI' not 'return on investment')",
     "sample_questions": [
       {
         "question": "What campaigns have the highest ROI?"
@@ -730,7 +817,7 @@ MODIFY LIVE VERSION SET SPECIFICATION =  $$
         "type": "warehouse",
         "warehouse": "COMPUTE_WH"
       },
-      "semantic_view": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_PERFORMANCE_ANALYST"
+      "semantic_view": "MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_PERFORMANCE_ANALYST"
     },
     "search_campaign_content": {
       "execution_environment": {
@@ -738,11 +825,11 @@ MODIFY LIVE VERSION SET SPECIFICATION =  $$
         "type": "warehouse",
         "warehouse": "COMPUTE_WH"
       },
-      "search_service": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.MARKETING_CAMPAIGNS_SEARCH"
+      "search_service": "MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGNS_SEARCH"
     },
     "generate_campaign_report": {
       "type": "procedure",
-      "identifier": "MARKETING_CAMPAIGNS_DB.AGENTS_DEV.GENERATE_CAMPAIGN_REPORT_HTML",
+      "identifier": "MARKETING_CAMPAIGNS_DB.AGENTS.GENERATE_CAMPAIGN_REPORT_HTML",
       "execution_environment": {
         "type": "warehouse",
         "warehouse": "COMPUTE_WH",
@@ -753,6 +840,8 @@ MODIFY LIVE VERSION SET SPECIFICATION =  $$
 }
 $$;
 
+-- Check newly created agent config
+DESCRIBE AGENT MARKETING_CAMPAIGNS_AGENT;
 
 -- ====================================================================
 -- SECTION 14: EVALUATE OPTIMIZATED AGENT
@@ -762,7 +851,7 @@ $$;
 CALL EXECUTE_AI_EVALUATION(
   'START',
   OBJECT_CONSTRUCT('run_name', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'),
-  '@MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
+  '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
 );
 
 
@@ -770,7 +859,7 @@ CALL EXECUTE_AI_EVALUATION(
 CALL EXECUTE_AI_EVALUATION( 
   'STATUS',
   OBJECT_CONSTRUCT('run_name', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'),
-  '@MARKETING_CAMPAIGNS_DB.AGENTS_DEV.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
+  '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
 );
 
 
