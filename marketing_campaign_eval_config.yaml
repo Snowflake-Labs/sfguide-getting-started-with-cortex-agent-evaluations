@@ -156,6 +156,12 @@ metrics:
       - Any tools used when no tool was necessary
       - Any required sub-problems that were skipped
 
+      Ground Truth Reference
+      - When available compare the tools selected by the agent with the {{ground_truth}}
+      - Agent tool calls should align to the tool_name key in the ground truth data. 
+      - Scores should be rewarded for selecting the right tools
+      - Scores should be penalized for excessive tool calls or calling tools not present in the ground truth data
+
       Sub-problem routing expectations:
       - Entity resolution / campaign ID lookup -> query_performance_metrics (or equivalent structured lookup)
       - Quantitative KPIs, rankings, trends, calculations -> query_performance_metrics
@@ -177,17 +183,20 @@ metrics:
         - Tool sequence breaks dependency order (e.g., required lookup skipped before dependent step)
         - Uses report generation without explicit report request
         - Uses data tools unnecessarily for capability/meta questions
+        - Completely omits tools specified in ground truth data
 
       0.5 (Moderate Tool Selection):
         - Most sub-problems are mapped correctly, but one important mapping is wrong or missing
         - Sequence is mostly reasonable with minor dependency issues
         - Includes one notable unnecessary tool call
+        - Matches most tools in ground truth data
 
       1 (Excellent Tool Selection):
         - Correctly decomposes query into required sub-problems
         - Maps each sub-problem to the most appropriate tool(s)
         - Uses multi-tool workflows when needed and in correct dependency order
         - Avoids unnecessary tools, especially for capability/meta prompts
+        - Closely or perfectly matches tools in ground truth data
 
       Consider:
       - Were quantitative and qualitative sub-problems routed to the correct tools?
