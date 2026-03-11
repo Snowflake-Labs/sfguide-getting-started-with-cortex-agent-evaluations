@@ -25,7 +25,7 @@ evaluation:
 
 metrics:
   # Built-in metrics
-  - correctness
+  - answer_correctness
   - logical_consistency
 
   # Custom Metrics
