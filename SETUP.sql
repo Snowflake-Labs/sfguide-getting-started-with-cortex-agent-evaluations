@@ -867,6 +867,7 @@ CALL EXECUTE_AI_EVALUATION(
 -- SECTION 15: CONCLUSION
 -- ====================================================================
 
+SELECT
 $$
 =====================================================
 MARKETING CAMPAIGNS ANALYTICS SYSTEM - SETUP COMPLETE
@@ -885,4 +886,4 @@ MARKETING CAMPAIGNS ANALYTICS SYSTEM - SETUP COMPLETE
 📈 Agent Optimizations: Improved Orchestration/Response Instructions and More Detailed Tool Descriptions
 📊 Measured Improvements: Increased Agent Quality Quantified using Out-of-the-Box and Custom Metrics
 
-$$
+$$ AS setup_status;
