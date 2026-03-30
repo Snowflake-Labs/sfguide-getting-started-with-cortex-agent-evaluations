@@ -11,7 +11,7 @@ Try it yourself in the [developer guide](https://www.snowflake.com/en/developers
 
 ## Docs
 
-Cortex Agent Evaluations: https://docs.snowflake.com/LIMITEDACCESS/cortex-agent-evaluations
+Cortex Agent Evaluations: https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-evaluations
 
 ## License
 
