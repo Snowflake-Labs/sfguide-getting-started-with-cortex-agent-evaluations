@@ -27,6 +27,8 @@ metrics:
   # Built-in metrics
   - answer_correctness
   - logical_consistency
+  - tool_selection_accuracy
+  - tool_execution_accuracy
 
   # Custom Metrics
 
