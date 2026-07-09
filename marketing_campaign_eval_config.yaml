@@ -18,7 +18,7 @@ evaluation:
     agent_type: CORTEX AGENT
   run_params:
     label: Marketing Campaign Agent Evaluation
-    description: Evaluating Answer Correctness, Logical Consistency, Execution Efficiency and Groundedness metrics for the marketing campaign analytics agent
+    description: Evaluating Answer Correctness, Logical Consistency, Tool Selection Accuracy, Tool Execution Accuracy, Groundedness and Execution Efficiency metrics for the marketing campaign analytics agent
   source_metadata:
     type: dataset
     dataset_name: MARKETING_CAMPAIGNS_DB.AGENTS.MARKETING_CAMPAIGN_EVALSET
@@ -27,6 +27,8 @@ metrics:
   # Built-in metrics
   - answer_correctness
   - logical_consistency
+  - tool_selection_accuracy
+  - tool_execution_accuracy
 
   # Custom Metrics
 
@@ -132,76 +134,3 @@ metrics:
       - For capability/meta queries, did it avoid unnecessary tool execution?
       - Could the same result have been achieved with fewer calls or a tighter sequence?
       - Focus on path efficiency and redundancy, not factual claim support.
-
-  # Tool Selection metric - TruLens Agent GPA based evaluation
-  # Evaluates whether the agent chose the most appropriate tools for each subtask
-  - name: tool_selection
-    score_ranges:
-      min_score: [0, 0.33]
-      median_score: [0.34, 0.66]
-      max_score: [0.67, 1]
-    prompt: |
-      You are evaluating tool selection as a sub-problem routing task for an AI agent that
-      analyzes marketing campaigns. Score whether the agent decomposes the query into
-      required sub-problems and maps each sub-problem to the right tool(s).
-
-      The agent has access to three tools:
-      1. query_performance_metrics - For quantitative analysis (revenue, ROI, conversions, etc.)
-      2. search_campaign_content - For qualitative insights (descriptions, feedback, A/B tests)
-      3. generate_campaign_report - For creating comprehensive HTML reports
-
-      Analyze the complete agent execution trace provided as context, including:
-      - Tool calls made and their sequence
-      - User intent and required sub-problems
-      - Any tools used when no tool was necessary
-      - Any required sub-problems that were skipped
-
-      Ground Truth Reference
-      - When available compare the tools selected by the agent with the {{ground_truth}}
-      - Agent tool calls should align to the tool_name key in the ground truth data. 
-      - Scores should be rewarded for selecting the right tools
-      - Scores should be penalized for excessive tool calls or calling tools not present in the ground truth data
-
-      Sub-problem routing expectations:
-      - Entity resolution / campaign ID lookup -> query_performance_metrics (or equivalent structured lookup)
-      - Quantitative KPIs, rankings, trends, calculations -> query_performance_metrics
-      - Qualitative strategy, A/B notes, feedback, similarity -> search_campaign_content
-      - Report artifact creation -> generate_campaign_report only when explicitly requested
-      - Capability/meta intent ("What can you help me with?") -> usually no data tools
-
-      For each query:
-      1. Identify required sub-problems.
-      2. Check if each sub-problem has an appropriate tool mapping.
-      3. Check if sequence respects dependencies.
-      4. Check for unnecessary tool calls.
-
-      Here are a few examples of tool selection scores:
-
-      0 (Poor Tool Selection):
-        - Multiple required sub-problems are mapped to wrong tools
-        - Important sub-problems are omitted entirely
-        - Tool sequence breaks dependency order (e.g., required lookup skipped before dependent step)
-        - Uses report generation without explicit report request
-        - Uses data tools unnecessarily for capability/meta questions
-        - Completely omits tools specified in ground truth data
-
-      0.5 (Moderate Tool Selection):
-        - Most sub-problems are mapped correctly, but one important mapping is wrong or missing
-        - Sequence is mostly reasonable with minor dependency issues
-        - Includes one notable unnecessary tool call
-        - Matches most tools in ground truth data
-
-      1 (Excellent Tool Selection):
-        - Correctly decomposes query into required sub-problems
-        - Maps each sub-problem to the most appropriate tool(s)
-        - Uses multi-tool workflows when needed and in correct dependency order
-        - Avoids unnecessary tools, especially for capability/meta prompts
-        - Closely or perfectly matches tools in ground truth data
-
-      Consider:
-      - Were quantitative and qualitative sub-problems routed to the correct tools?
-      - For vague comparison prompts (e.g., most compelling A/B results, most alike campaigns),
-        did the agent include qualitative retrieval via search_campaign_content?
-      - Did report generation appear only with explicit report intent?
-      - Were capability/meta prompts handled without unnecessary tool calls?
-      - Focus only on routing and tool-subproblem mapping quality, not output correctness or runtime.
