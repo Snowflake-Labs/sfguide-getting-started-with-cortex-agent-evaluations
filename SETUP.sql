@@ -598,6 +598,24 @@ $$;
 -- Validate agent creation
 DESCRIBE AGENT MARKETING_CAMPAIGNS_AGENT;
 
+-- ====================================================================
+-- SECTION 10.5: EXPLORE AGENT VERSIONS
+-- ====================================================================
+-- CREATE AGENT automatically creates two versions:
+--   VERSION$1 (committed, immutable snapshot of the baseline spec)
+--   LIVE (mutable working copy for development)
+
+-- View all versions
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
+-- Assign a human-readable alias to the baseline version
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT
+  MODIFY VERSION VERSION$1 SET ALIAS = baseline;
+
+-- The default version is VERSION$1 (latest committed = LAST)
+-- The baseline eval in Section 12 will run against this version
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
 
 -- ====================================================================
 -- SECTION 11: OPTIONAL - UI DRIVEN AGENT EVALUATIONS 
@@ -652,6 +670,9 @@ FILES = ('marketing_campaign_eval_config.yaml');
 
 -- Confirm yaml was uploaded
 LS @MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE;
+
+-- Check contents of yaml
+SELECT $1 FROM @MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml;
 
 -- Kickoff evaluation run using yaml config
 CALL EXECUTE_AI_EVALUATION(
@@ -843,8 +864,25 @@ $$;
 -- Check newly created agent config
 DESCRIBE AGENT MARKETING_CAMPAIGNS_AGENT;
 
+
+-- Commit the optimized LIVE version to create an immutable snapshot (VERSION$2)
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT COMMIT
+  COMMENT = 'Optimized: detailed orchestration instructions and tool descriptions';
+
+-- Assign alias to the new committed version
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT
+  MODIFY VERSION VERSION$2 SET ALIAS = optimized;
+
+-- Set the optimized version as the default
+-- All eval runs and API calls without an explicit version will now use VERSION$2
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT
+  SET DEFAULT_VERSION = 'VERSION$2';
+
+-- Confirm both versions exist with their aliases
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
 -- ====================================================================
--- SECTION 14: EVALUATE OPTIMIZATED AGENT
+-- SECTION 14: EVALUATE OPTIMIZED AGENT (VERSION$2)
 -- ====================================================================
 
 -- Kickoff evaluation run using yaml config
@@ -863,27 +901,66 @@ CALL EXECUTE_AI_EVALUATION(
 );
 
 
+-- SECTION 15: VERSION MANAGEMENT AND ROLLBACK
 -- ====================================================================
--- SECTION 15: CONCLUSION
+
+-- View all agent versions with aliases
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
+-- ROLLBACK: If the optimized agent regresses on certain queries,
+-- point the default back to the baseline version
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT
+  SET DEFAULT_VERSION = 'VERSION$1';
+
+-- Verify the default is now baseline
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
+-- RESTORE: Set optimized back as the default after investigation
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT
+  SET DEFAULT_VERSION = 'VERSION$2';
+
+-- RESUME DEVELOPMENT: Create a new LIVE version from the latest commit
+-- to continue iterating (LIVE was consumed by the earlier COMMIT)
+ALTER AGENT MARKETING_CAMPAIGNS_AGENT ADD LIVE VERSION FROM LAST
+  COMMENT = 'Resuming development from optimized version';
+
+-- View all versions including the new LIVE
+SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
+
+-- VERSIONED API: Target a specific version in REST API calls
+-- POST /api/v2/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS/agents/MARKETING_CAMPAIGNS_AGENT/versions/optimized:run
+-- POST /api/v2/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS/agents/MARKETING_CAMPAIGNS_AGENT/versions/baseline:run
+-- POST /api/v2/databases/MARKETING_CAMPAIGNS_DB/schemas/AGENTS/agents/MARKETING_CAMPAIGNS_AGENT/versions/LAST:run
+
+-- CLEANUP (optional): Drop LIVE version when not actively developing
+-- ALTER AGENT MARKETING_CAMPAIGNS_AGENT DROP VERSION LIVE;
+
+
 -- ====================================================================
+-- SECTION 16: CONCLUSION
+
 
 SELECT
 $$
 =====================================================
 MARKETING CAMPAIGNS ANALYTICS SYSTEM - SETUP COMPLETE
 =====================================================
-🗄️ Database created: MARKETING_CAMPAIGNS_DB 
-🗂️ Four Tables created with sample data:
-   - CAMPAIGNS (25 records)
-   - CAMPAIGN_PERFORMANCE (1,578 records)
-   - CAMPAIGN_CONTENT (25 records)
-   - CAMPAIGN_FEEDBACK (23 records)
+🗄️ Database: MARKETING_CAMPAIGNS_DB
+🗂️ Tables: CAMPAIGNS (25 Rows), CAMPAIGN_PERFORMANCE (1,578 Rows), CAMPAIGN_CONTENT (25 Rows), CAMPAIGN_FEEDBACK (23 Rows)
 
-🚀 Semantic View created: MARKETING_PERFORMANCE_ANALYST
-🔍 Cortex Search Service created: MARKETING_CAMPAIGNS_SEARCH
-📝 Stored Procedure created: GENERATE_CAMPAIGN_REPORT_PDF
-🔮 Agent Created: MARKETING_CAMPAIGN_AGENT
-📈 Agent Optimizations: Improved Orchestration/Response Instructions and More Detailed Tool Descriptions
-📊 Measured Improvements: Increased Agent Quality Quantified using Out-of-the-Box and Custom Metrics
+🚀 Semantic View: MARKETING_PERFORMANCE_ANALYST
+🔍 Cortex Search Service: MARKETING_CAMPAIGNS_SEARCH
+📝 Stored Procedure: GENERATE_CAMPAIGN_REPORT_HTML
+
+🔮 Agent: MARKETING_CAMPAIGNS_AGENT
+  VERSION$1 (alias: baseline)  - Minimal instructions
+  VERSION$2 (alias: optimized) - Detailed orchestration + tool descriptions
+  DEFAULT: VERSION$2
+
+📈 Evaluations:
+  BASELINE_MARKETING_AGENT_EVAL_RUN  - Against VERSION$1 (baseline)
+  OPTIMIZED_MARKETING_AGENT_EVAL_RUN - Against VERSION$2 (optimized)
+
+📊 Compare evaluation results in Snowsight: AI & ML > Agents > Evaluations
 
 $$ AS setup_status;
