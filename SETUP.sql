@@ -900,7 +900,7 @@ CALL EXECUTE_AI_EVALUATION(
   '@MARKETING_CAMPAIGNS_DB.AGENTS.EVAL_CONFIG_STAGE/marketing_campaign_eval_config.yaml'
 );
 
-
+-- ====================================================================
 -- SECTION 15: VERSION MANAGEMENT AND ROLLBACK
 -- ====================================================================
 
@@ -937,7 +937,114 @@ SHOW VERSIONS IN AGENT MARKETING_CAMPAIGNS_AGENT;
 
 
 -- ====================================================================
--- SECTION 16: CONCLUSION
+-- SECTION 16: ANALYZE EVAL RESULTS
+-- ====================================================================
+
+-- Programmatically see eval results
+SELECT * FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'BASELINE_MARKETING_AGENT_EVAL_RUN'));
+
+-- Compare average metric scores: baseline vs optimized
+WITH baseline AS (
+    SELECT METRIC_NAME, AVG(EVAL_AGG_SCORE) AS avg_score
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'BASELINE_MARKETING_AGENT_EVAL_RUN'))
+    GROUP BY METRIC_NAME
+),
+optimized AS (
+    SELECT METRIC_NAME, AVG(EVAL_AGG_SCORE) AS avg_score
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'))
+    GROUP BY METRIC_NAME
+)
+SELECT
+    COALESCE(b.METRIC_NAME, o.METRIC_NAME) AS metric,
+    ROUND(b.avg_score, 3) AS baseline_score,
+    ROUND(o.avg_score, 3) AS optimized_score,
+    ROUND(o.avg_score - b.avg_score, 3) AS delta
+FROM baseline b
+FULL OUTER JOIN optimized o ON b.METRIC_NAME = o.METRIC_NAME
+ORDER BY metric;
+
+
+-- Compare latency: baseline vs optimized
+WITH baseline AS (
+    SELECT DISTINCT INPUT_ID, DURATION_MS
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'BASELINE_MARKETING_AGENT_EVAL_RUN'))
+),
+optimized AS (
+    SELECT DISTINCT INPUT_ID, DURATION_MS
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'))
+)
+SELECT
+    'BASELINE' AS run,
+    ROUND(AVG(DURATION_MS)) AS avg_latency_ms,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY DURATION_MS)) AS p50_ms,
+    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY DURATION_MS)) AS p95_ms
+FROM baseline
+UNION ALL
+SELECT
+    'OPTIMIZED' AS run,
+    ROUND(AVG(DURATION_MS)) AS avg_latency_ms,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY DURATION_MS)) AS p50_ms,
+    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY DURATION_MS)) AS p95_ms
+FROM optimized;
+
+
+-- Compare token consumption: baseline vs optimized
+WITH baseline AS (
+    SELECT DISTINCT INPUT_ID, TOTAL_INPUT_TOKENS, TOTAL_OUTPUT_TOKENS, LLM_CALL_COUNT
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'BASELINE_MARKETING_AGENT_EVAL_RUN'))
+),
+optimized AS (
+    SELECT DISTINCT INPUT_ID, TOTAL_INPUT_TOKENS, TOTAL_OUTPUT_TOKENS, LLM_CALL_COUNT
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'))
+)
+SELECT
+    'BASELINE' AS run,
+    ROUND(AVG(TOTAL_INPUT_TOKENS)) AS avg_input_tokens,
+    ROUND(AVG(TOTAL_OUTPUT_TOKENS)) AS avg_output_tokens,
+    ROUND(AVG(TOTAL_INPUT_TOKENS + TOTAL_OUTPUT_TOKENS)) AS avg_total_tokens,
+FROM baseline
+UNION ALL
+SELECT
+    'OPTIMIZED' AS run,
+    ROUND(AVG(TOTAL_INPUT_TOKENS)) AS avg_input_tokens,
+    ROUND(AVG(TOTAL_OUTPUT_TOKENS)) AS avg_output_tokens,
+    ROUND(AVG(TOTAL_INPUT_TOKENS + TOTAL_OUTPUT_TOKENS)) AS avg_total_tokens,
+FROM optimized;
+
+-- Per-question delta: which questions improved/regressed the most?
+WITH baseline AS (
+    SELECT INPUT, METRIC_NAME, EVAL_AGG_SCORE AS baseline_score
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'BASELINE_MARKETING_AGENT_EVAL_RUN'))
+),
+optimized AS (
+    SELECT INPUT, METRIC_NAME, EVAL_AGG_SCORE AS optimized_score
+    FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        'MARKETING_CAMPAIGNS_DB', 'AGENTS', 'MARKETING_CAMPAIGNS_AGENT', 'CORTEX AGENT', 'OPTIMIZED_MARKETING_AGENT_EVAL_RUN'))
+)
+SELECT
+    b.INPUT AS question,
+    b.METRIC_NAME AS metric,
+    b.baseline_score,
+    o.optimized_score,
+    ROUND(o.optimized_score - b.baseline_score, 3) AS delta
+FROM baseline b
+JOIN optimized o ON b.INPUT = o.INPUT AND b.METRIC_NAME = o.METRIC_NAME
+WHERE o.optimized_score != b.baseline_score
+ORDER BY ABS(delta) DESC
+LIMIT 20;
+
+
+-- ====================================================================
+-- SECTION 17: CONCLUSION
+-- ====================================================================
 
 
 SELECT
