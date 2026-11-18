@@ -25,10 +25,14 @@ evaluation:
 
 metrics:
   # Built-in metrics
-  - answer_correctness
-  - logical_consistency
-  - tool_selection_accuracy
-  - tool_execution_accuracy
+  - name: "answer_correctness"
+    version: "v3"
+  - name: "logical_consistency"
+    version: "v3"
+  - name: "tool_selection_accuracy"
+    version: "v3"
+  - name: "tool_execution_accuracy"
+    version: "v3"
 
   # Custom Metrics
 
